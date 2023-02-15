@@ -1,0 +1,15 @@
+#+title: Stuff
+
+* How to go about it: stuff I can use
+Some info is gleaned from looking at https://everyonedraw.com
+** Use websockets to send and receive individual pixels
+** Send rendered tiles as pngs via GET request
+** everyone draw deals with initial render + new pixels separately, because new pixels are rare
+But new pixels are pretty common for us. Likely we want to compute client-side
+The client can compute everything loaded _except_ for the outermost 1-cell thick layer, which can be sent by the server.
+** Use something to render it
+- everyonedraw uses canvas
+- tables
+** Use database to store stuff, or store in ram
+*** If data can't fit in memory, then how do we update it?
+Chunking to update + load what we need (index) when someone wants it
