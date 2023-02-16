@@ -35,17 +35,19 @@ function renderTiles(tiles) {
   }
 }
 
-fetch("/tiles?x=0&y=0&w=50&h=50")
-  .then((response) => response.json())
-  .then(function (data) {
-    renderTiles(data);
-  })
-  .catch(function (err) {
-    console.log("Fetch error :-S", err);
-  });
+const socket = new WebSocket("ws://localhost:8080/ws");
+socket.onopen = (event) => {
+  socket.send("test!");
+};
+socket.onmessage = (event) => {
+  console.log(event.data);
+};
 
-// function updateWireworld() {
-//     setTimeout(updateWireworld, 5000);
-// }
-
-// updateWireworld();
+// fetch("/tiles?x=0&y=0&w=50&h=50")
+//   .then((response) => response.json())
+//   .then(function (data) {
+//     renderTiles(data);
+//   })
+//   .catch(function (err) {
+//     console.log("Fetch error :-S", err);
+//   });

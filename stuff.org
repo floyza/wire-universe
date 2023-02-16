@@ -13,3 +13,6 @@ The client can compute everything loaded _except_ for the outermost 1-cell thick
 ** Use database to store stuff, or store in ram
 *** If data can't fit in memory, then how do we update it?
 Chunking to update + load what we need (index) when someone wants it
+* Architecture
+Connections incoming for websockets get stored.
+Every five seconds, the server world gets stepped, and then each open socket gets sent a portion of the current world state. -- use tokio broadcast
