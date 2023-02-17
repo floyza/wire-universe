@@ -1,15 +1,13 @@
-function renderTiles(tiles) {
-  console.log(tiles);
+const tileSize = 20;
 
+function renderTiles(tiles) {
   const canvas = document.getElementById("canvas");
-  const tileSize = 20;
   canvas.width = tiles[0].length * tileSize;
   canvas.height = tiles.length * tileSize;
 
   const ctx = canvas.getContext("2d");
 
   for (const [y, row] of tiles.entries()) {
-    console.log(row);
     for (const [x, tile] of row.entries()) {
       switch (tile) {
         case "Alive":
@@ -33,18 +31,21 @@ function renderTiles(tiles) {
 }
 
 const socket = new WebSocket("ws://localhost:3000/ws");
-socket.onopen = (event) => {
-  socket.send("test!");
-};
+socket.onopen = (event) => {};
 socket.onmessage = (event) => {
-  console.log(event.data);
+  let msg = JSON.parse(event.data);
+  renderTiles(msg.Refresh.tiles);
 };
 
-// fetch("/tiles?x=0&y=0&w=50&h=50")
-//   .then((response) => response.json())
-//   .then(function (data) {
-//     renderTiles(data);
-//   })
-//   .catch(function (err) {
-//     console.log("Fetch error :-S", err);
-//   });
+const canvas = document.getElementById("canvas");
+canvas.onclick = (event) => {
+  const x = event.pageX - canvas.offsetLeft;
+  const y = event.pageY - canvas.offsetTop;
+  let tileX = parseInt(x / tileSize, 10);
+  let tileY = parseInt(y / tileSize, 10);
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "orange";
+  ctx.fillRect(tileX * tileSize, tileY * tileSize, tileSize, tileSize);
+  let message = { ModifyCell: { x: tileX, y: tileY, cell: "Wire" } };
+  socket.send(JSON.stringify(message));
+};

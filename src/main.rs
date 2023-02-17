@@ -93,8 +93,8 @@ async fn handle_socket(
 ) {
     let mut view_x = 0;
     let mut view_y = 0;
-    let mut view_w = 3;
-    let mut view_h = 3;
+    let mut view_w = 30;
+    let mut view_h = 30;
     loop {
         select! {
             Ok(world) = world_receiver.recv() => {
@@ -140,7 +140,7 @@ async fn world_updator(
     world_sender: broadcast::Sender<World>,
     mut update_receiver: mpsc::UnboundedReceiver<CellModification>,
 ) {
-    let mut interval = interval(Duration::from_secs(5));
+    let mut interval = interval(Duration::from_millis(500));
     loop {
         _ = world_sender.send(world.clone()); // it's fine if there isn't anyone listening
         loop {
