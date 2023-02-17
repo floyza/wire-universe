@@ -1,6 +1,3 @@
-// ctx.fillStyle = "green";
-// ctx.fillRect(10, 10, 150, 100);
-
 function renderTiles(tiles) {
   console.log(tiles);
 
@@ -35,7 +32,7 @@ function renderTiles(tiles) {
   }
 }
 
-const socket = new WebSocket("ws://localhost:8080/ws");
+const socket = new WebSocket("ws://localhost:3000/ws");
 socket.onopen = (event) => {
   socket.send("test!");
 };

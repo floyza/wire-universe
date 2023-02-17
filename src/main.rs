@@ -1,183 +1,187 @@
-use std::sync::Arc;
-use std::{sync::Mutex, time::Duration};
+use std::time::Duration;
 
-use actix::prelude::*;
-use actix::{Actor, Addr, Context, Handler, Message, StreamHandler};
-use actix_files::Files;
-use actix_web::{get, web, App, Error, HttpRequest, HttpResponse, HttpServer, Responder};
-use actix_web_actors::ws;
+use axum::{
+    extract::{
+        ws::{Message, WebSocket, WebSocketUpgrade},
+        State,
+    },
+    http::{StatusCode, Uri},
+    response::{IntoResponse, Response},
+    routing::{get, get_service},
+    Router,
+};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use tokio::{
+    select,
+    sync::mpsc,
+    time::{interval, Interval},
+};
+use tokio::{sync::broadcast, task};
+use tower_http::services::ServeDir;
+use wireworld::{CellState, World};
 
-#[derive(Copy, Clone, Serialize)]
-enum CellState {
-    Alive,
-    Dead,
-    Empty,
-    Wire,
-}
-
-const WORLD_WIDTH: usize = 500;
-const WORLD_HEIGHT: usize = 500;
+mod wireworld;
 
 #[derive(Clone)]
-struct World {
-    tiles: [CellState; WORLD_WIDTH * WORLD_HEIGHT],
+struct AppState {
+    world_sender: broadcast::Sender<World>,
+    update_sender: mpsc::UnboundedSender<CellModification>,
 }
 
-impl World {
-    fn new() -> World {
-        World {
-            tiles: [CellState::Empty; WORLD_WIDTH * WORLD_HEIGHT],
-        }
-    }
+async fn handler(ws: WebSocketUpgrade, state: State<AppState>) -> Response {
+    ws.on_upgrade(move |socket| {
+        handle_socket(
+            socket,
+            state.world_sender.subscribe(),
+            state.update_sender.clone(),
+        )
+    })
+}
 
-    fn idx(x: usize, y: usize) -> usize {
-        y * WORLD_WIDTH + x
-    }
+#[derive(Serialize, PartialEq, Debug)]
+enum FromServer {
+    Refresh {
+        x: usize,
+        y: usize,
+        tiles: Vec<Vec<CellState>>,
+    },
+}
 
-    fn step(&mut self) {
-        let copy = self.clone();
-        for i in 0..copy.tiles.len() {
-            self.tiles[i] = copy.next_state(i);
-        }
-    }
+#[derive(Deserialize, PartialEq, Debug)]
+enum FromClient {
+    ModifyCell {
+        x: usize,
+        y: usize,
+        cell: CellState,
+    },
+    SetView {
+        x: usize,
+        y: usize,
+        w: usize,
+        h: usize,
+    },
+}
 
-    fn next_state(&self, idx: usize) -> CellState {
-        match self.tiles[idx] {
-            CellState::Alive => CellState::Dead,
-            CellState::Dead => CellState::Wire,
-            CellState::Empty => CellState::Empty,
-            CellState::Wire => {
-                let mut living_neighbors = 0;
-                for i in [
-                    idx - 1,
-                    idx + 1,
-                    idx - WORLD_WIDTH,
-                    idx + WORLD_WIDTH,
-                    idx - WORLD_WIDTH - 1,
-                    idx - WORLD_WIDTH + 1,
-                    idx + WORLD_WIDTH - 1,
-                    idx + WORLD_WIDTH + 1,
-                ] {
-                    if let Some(CellState::Alive) = self.tiles.get(i) {
-                        living_neighbors += 1;
+#[cfg(test)]
+mod tests {
+    use crate::wireworld::CellState;
+
+    #[test]
+    fn from_client_deserialization() {
+        use super::FromClient;
+        let js = r#"{"ModifyCell": { "x": 1, "y": 5, "cell": "Alive" }}"#;
+        let msg = FromClient::ModifyCell {
+            x: 1,
+            y: 5,
+            cell: CellState::Alive,
+        };
+        assert_eq!(serde_json::from_str::<FromClient>(js).unwrap(), msg);
+    }
+}
+
+struct CellModification {
+    x: usize,
+    y: usize,
+    cell: wireworld::CellState,
+}
+
+async fn handle_socket(
+    mut socket: WebSocket,
+    mut world_receiver: broadcast::Receiver<World>,
+    update_sender: mpsc::UnboundedSender<CellModification>,
+) {
+    let mut view_x = 0;
+    let mut view_y = 0;
+    let mut view_w = 3;
+    let mut view_h = 3;
+    loop {
+        select! {
+            Ok(world) = world_receiver.recv() => {
+                let tiles = world.copy_slice(view_x, view_y, view_w, view_h);
+                let msg = FromServer::Refresh { x: view_x, y: view_y, tiles };
+                if socket.send(Message::Text(serde_json::to_string(&msg).unwrap())).await.is_err() {
+                    return;
+                }
+            }
+            Some(msg) = socket.recv() => {
+                match msg {
+                    Ok(Message::Text(data)) => {
+                        if let Ok(val) = serde_json::from_str::<FromClient>(&data) {
+                            match val {
+                                FromClient::ModifyCell { x, y, cell } => {
+                                    _ = update_sender.send(CellModification { x, y, cell });
+                                }
+                                FromClient::SetView { x, y, w, h } => {
+                                    view_x = x;
+                                    view_y = y;
+                                    view_w = w;
+                                    view_h = h;
+                                }
+                            }
+                        }
                     }
+                    _ => (),
                 }
-                if living_neighbors == 1 || living_neighbors == 2 {
-                    CellState::Alive
-                } else {
-                    CellState::Wire
-                }
+            }
+            else => {
+                return;
             }
         }
     }
 }
 
-// #[derive(Deserialize)]
-// struct WorldQuery {
-//     x: usize,
-//     y: usize,
-//     w: usize,
-//     h: usize,
-// }
-
-// #[get("/tiles")]
-// async fn get_world(data: web::Data<World>, query: web::Query<WorldQuery>) -> impl Responder {
-//     let mut ret = Vec::new();
-//     for y in query.y..query.y + query.h {
-//         let mut row = Vec::new();
-//         for x in query.x..query.x + query.w {
-//             let idx = World::idx(x, y);
-//             row.push(data.tiles[idx]);
-//         }
-//         ret.push(row);
-//     }
-//     HttpResponse::Ok().json(ret)
-// }
-
-struct AppState {
-    ws_clients: Arc<Mutex<Vec<Addr<MyWs>>>>,
+async fn error_404(uri: Uri) -> (StatusCode, String) {
+    (StatusCode::NOT_FOUND, format!("Not found: {}", uri.path()))
 }
 
-#[get("/ws")]
-async fn websocket_handler(
-    req: HttpRequest,
-    stream: web::Payload,
-    state: web::Data<AppState>,
-) -> Result<HttpResponse, Error> {
-    let (addr, resp) = ws::WsResponseBuilder::new(MyWs, &req, stream).start_with_addr()?;
-    state.ws_clients.lock().unwrap().push(addr);
-    println!("{:?}", resp);
-    Ok(resp)
-}
-
-struct MyWs;
-
-impl Actor for MyWs {
-    type Context = ws::WebsocketContext<Self>;
-}
-
-impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for MyWs {
-    fn handle(&mut self, item: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
-        match item {
-            Ok(ws::Message::Ping(msg)) => ctx.pong(&msg),
-            Ok(ws::Message::Text(text)) => ctx.text(text),
-            Ok(ws::Message::Binary(bin)) => ctx.binary(bin),
-            _ => (),
-        }
-    }
-}
-
-#[derive(Message)]
-#[rtype(result = "()")]
-struct ServerEvent {
-    event: String,
-}
-
-impl Handler<ServerEvent> for MyWs {
-    type Result = ();
-
-    fn handle(&mut self, msg: ServerEvent, ctx: &mut Self::Context) -> Self::Result {
-        ctx.text(msg.event);
-    }
-}
-
-async fn world_updator(mut world: Box<World>, clients: Arc<Mutex<Vec<Addr<MyWs>>>>) {
-    let mut interval = actix_rt::time::interval(Duration::from_secs(5));
+async fn world_updator(
+    mut world: World,
+    world_sender: broadcast::Sender<World>,
+    mut update_receiver: mpsc::UnboundedReceiver<CellModification>,
+) {
+    let mut interval = interval(Duration::from_secs(5));
     loop {
-        // world.step();
-        for client in clients.lock().unwrap().iter() {
-            client
-                .send(ServerEvent {
-                    event: "thing".to_string(),
-                })
-                .await
-                .unwrap();
+        _ = world_sender.send(world.clone()); // it's fine if there isn't anyone listening
+        loop {
+            select! {
+                Some(CellModification {x, y, cell}) = update_receiver.recv() => {
+                    world.tiles[World::idx(x, y)] = cell;
+                }
+                _ = interval.tick() => {
+                    break;
+                }
+            }
         }
-        interval.tick().await;
+        world.step();
     }
 }
 
-#[actix_web::main]
-async fn main() -> std::io::Result<()> {
-    let mut world = Box::new(World::new());
-    world.tiles[0] = CellState::Alive;
-    world.tiles[1] = CellState::Wire;
-    world.tiles[2] = CellState::Wire;
-    let clients = web::Data::new(AppState {
-        ws_clients: Arc::new(Mutex::new(Vec::new())),
-    });
-    actix_rt::spawn(world_updator(world, clients.ws_clients.clone()));
-    HttpServer::new(move || {
-        App::new()
-            .app_data(clients.clone())
-            .service(websocket_handler)
-            .service(
-                Files::new("/", "/home/gavin/src/wire-universe/src/static")
-                    .index_file("index.html"),
-            )
-    })
-    .bind(("127.0.0.1", 8080))?
-    .run()
-    .await
+#[tokio::main]
+async fn main() {
+    let (tx, _) = broadcast::channel::<World>(16);
+    let (tx2, rx) = mpsc::unbounded_channel::<CellModification>();
+    let world_task = task::spawn(world_updator(wireworld::sample_world(), tx.clone(), rx));
+    let serve_dir = get_service(ServeDir::new("assets")).handle_error(handle_error);
+    let state = AppState {
+        world_sender: tx,
+        update_sender: tx2,
+    };
+    let app = Router::new()
+        .route("/ws", get(handler))
+        .nest_service("/", serve_dir)
+        .fallback(error_404)
+        .with_state(state);
+
+    let server =
+        axum::Server::bind(&"0.0.0.0:3000".parse().unwrap()).serve(app.into_make_service());
+
+    select! {_ = world_task => {} _ = server => {}}
+}
+
+async fn handle_error(err: std::io::Error) -> impl IntoResponse {
+    (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        format!("Internal server error: {}", err),
+    )
 }
