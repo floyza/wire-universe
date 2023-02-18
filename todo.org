@@ -1,0 +1,4 @@
+* Inbox
+** TODO make brush change trigger redrawing brush at mouse position
+[[file:~/src/wire-universe/assets/script.js::document.onkeydown = (event) => {]]
+** TODO place palette on top of canvas?

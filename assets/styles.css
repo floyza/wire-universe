@@ -1,0 +1,74 @@
+#canvases {
+  position: relative;
+}
+
+#canvases canvas {
+  border: 1px solid black;
+  position: absolute;
+  left: 50px;
+}
+
+#world-canvas {
+  z-index: 0;
+}
+
+#brush-canvas {
+  z-index: 1;
+}
+
+#brush-canvas:hover {
+  cursor: crosshair;
+}
+
+#palette {
+  width: 36px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  float: left;
+  padding-right: 5px;
+}
+
+#palette button {
+  height: 36px;
+  border: 5px solid black;
+  color: lightblue;
+  cursor: pointer;
+  transition: background-color 100ms;
+}
+
+#palette button[data-selected="true"] {
+  border: 5px solid green;
+}
+
+#paint-wire {
+  background-color: orange;
+}
+
+#paint-wire:hover {
+  background-color: yellow;
+}
+
+#paint-electron {
+  background-color: blue;
+}
+
+#paint-electron:hover {
+  background-color: lightblue;
+}
+
+#paint-blank {
+  background-color: white;
+}
+
+#paint-blank:hover {
+  background-color: lightgrey;
+}
+
+#paint-tail {
+  background-color: grey;
+}
+
+#paint-tail:hover {
+  background-color: lightgrey;
+}
