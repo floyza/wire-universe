@@ -34,18 +34,6 @@ function paintTile(x, y, tile, target) {
   ctx.fillRect(viewport.x + x * zoom, viewport.y + y * zoom, zoom, zoom);
 }
 
-function maybeResizeCanvas(w, h) {
-  // NOTE: if canvas width and height are changed, it blanks the canvas
-  if (w !== canvas.width) {
-    canvas.width = w;
-    brushCanvas.width = w;
-  }
-  if (h !== canvas.height) {
-    canvas.height = h;
-    brushCanvas.height = h;
-  }
-}
-
 function getTile(x, y) {
   if (x >= 0 && y >= 0 && x < tileState.w && y < tileState.h) {
     return tileState.tiles[y][x];
@@ -69,11 +57,6 @@ function renderTiles() {
       }
     }
   }
-  // for (const [y, row] of tileState.tiles.entries()) {
-  //   for (const [x, tile] of row.entries()) {
-  //     paintTile(x, y, tile, canvas);
-  //   }
-  // }
 }
 
 function setBrush(newBrush) {
@@ -160,7 +143,6 @@ socket.onmessage = (event) => {
   tileState.tiles = msg.Refresh.tiles;
   tileState.w = tileState.tiles[0].length;
   tileState.h = tileState.tiles.length;
-  // maybeResizeCanvas(tileState.w * zoom, tileState.h * zoom);
   renderTiles();
 };
 
