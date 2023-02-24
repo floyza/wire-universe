@@ -41,16 +41,21 @@ function getTile(x, y) {
   return null;
 }
 
-function renderTiles() {
-  const ctx = canvas.getContext("2d");
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+function getViewedTileBounds() {
   // I'm unsure of this math. This should be tested
   let startX = Math.floor(-viewport.x / zoom);
   let endX = Math.floor((-viewport.x + viewport.w) / zoom);
   let startY = Math.floor(-viewport.y / zoom);
   let endY = Math.floor((-viewport.y + viewport.h) / zoom);
-  for (let x = startX; x <= endX; ++x) {
-    for (let y = startY; y <= endY; ++y) {
+  return { x: startX, y: startY, w: endX - startX, h: endY - startY };
+}
+
+function renderTiles() {
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  let bounds = getViewedTileBounds();
+  for (let x = bounds.x; x <= bounds.x + bounds.w; ++x) {
+    for (let y = bounds.y; y <= bounds.y + bounds.h; ++y) {
       let tile = getTile(x, y);
       if (tile !== null) {
         paintTile(x, y, tile, canvas);
@@ -124,13 +129,10 @@ function setBrush(newBrush) {
 
 const socket = new WebSocket("ws://localhost:3000/ws");
 socket.onopen = (event) => {
-  // TODO send constantly send SetView. Also extract conversion to tiles into function
-  let startX = Math.floor(-viewport.x / zoom);
-  let endX = Math.floor((-viewport.x + viewport.w) / zoom);
-  let startY = Math.floor(-viewport.y / zoom);
-  let endY = Math.floor((-viewport.y + viewport.h) / zoom);
+  // TODO send constantly send SetView
+  let bounds = getViewedTileBounds();
   let viewset = {
-    SetView: { x: startX, y: startY, w: endX - startX, h: endY - startY },
+    SetView: bounds,
   };
   socket.send(JSON.stringify(viewset));
   socket.send(JSON.stringify("StartStream"));
