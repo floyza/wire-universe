@@ -35,6 +35,9 @@ function paintTile(x, y, tile, target) {
 }
 
 function getTile(x, y) {
+  // TODO test
+  x -= tileState.x;
+  y -= tileState.y;
   if (x >= 0 && y >= 0 && x < tileState.w && y < tileState.h) {
     return tileState.tiles[y][x];
   }
@@ -43,19 +46,20 @@ function getTile(x, y) {
 
 function getViewedTileBounds() {
   // I'm unsure of this math. This should be tested
+  // TODO test
   let startX = Math.floor(-viewport.x / zoom);
   let endX = Math.floor((-viewport.x + viewport.w) / zoom);
   let startY = Math.floor(-viewport.y / zoom);
   let endY = Math.floor((-viewport.y + viewport.h) / zoom);
-  return { x: startX, y: startY, w: endX - startX, h: endY - startY };
+  return { x: startX, y: startY, w: endX - startX + 1, h: endY - startY + 1 };
 }
 
 function renderTiles() {
   const ctx = canvas.getContext("2d");
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   let bounds = getViewedTileBounds();
-  for (let x = bounds.x; x <= bounds.x + bounds.w; ++x) {
-    for (let y = bounds.y; y <= bounds.y + bounds.h; ++y) {
+  for (let x = bounds.x; x < bounds.x + bounds.w; ++x) {
+    for (let y = bounds.y; y < bounds.y + bounds.h; ++y) {
       let tile = getTile(x, y);
       if (tile !== null) {
         paintTile(x, y, tile, canvas);
@@ -129,7 +133,6 @@ function setBrush(newBrush) {
 
 const socket = new WebSocket("ws://localhost:3000/ws");
 socket.onopen = (event) => {
-  // TODO send constantly send SetView
   let bounds = getViewedTileBounds();
   let viewset = {
     SetView: bounds,
@@ -140,8 +143,8 @@ socket.onopen = (event) => {
 
 socket.onmessage = (event) => {
   let msg = JSON.parse(event.data);
-  tileState.x = 0;
-  tileState.y = 0;
+  tileState.x = msg.Refresh.x;
+  tileState.y = msg.Refresh.y;
   tileState.tiles = msg.Refresh.tiles;
   tileState.w = tileState.tiles[0].length;
   tileState.h = tileState.tiles.length;
@@ -158,6 +161,20 @@ function getCanvasMousePosition(event) {
 function applyDrag(distX, distY) {
   viewport.x += distX;
   viewport.y += distY;
+  let bounds = getViewedTileBounds();
+  if (bounds.x < 0) {
+    bounds.w = Math.max(0, bounds.w + bounds.x);
+    bounds.x = 0;
+  }
+  if (bounds.y < 0) {
+    bounds.h = Math.max(0, bounds.h + bounds.y);
+    bounds.y = 0;
+  }
+  let viewset = {
+    SetView: bounds,
+  };
+  // perhaps we should limit the number of these that we send
+  socket.send(JSON.stringify(viewset));
 }
 
 brushCanvas.onmousedown = (event) => {
