@@ -2,6 +2,7 @@ let zoom = 20;
 let brush = "Wire";
 let tileState = {};
 let dragState = null;
+let mousePos = null;
 let viewport = { x: 0, y: 0, w: 300, h: 300 };
 
 const canvas = document.getElementById("world-canvas");
@@ -109,6 +110,14 @@ function setBrush(newBrush) {
     default:
       alert("ack! setBrush error: invalid brush: " + newBrush);
   }
+  if (mousePos !== null) {
+    paintTile(
+      Math.floor((mousePos.x - viewport.x) / zoom),
+      Math.floor((mousePos.y - viewport.y) / zoom),
+      brush,
+      brushCanvas
+    );
+  }
 }
 
 {
@@ -157,6 +166,7 @@ function applyDrag(distX, distY) {
 
 brushCanvas.onmousedown = (event) => {
   let position = getCanvasMousePosition(event);
+  mousePos = position;
   dragState = { start: position, state: "still" };
 };
 brushCanvas.onmouseup = (event) => {
@@ -171,9 +181,11 @@ brushCanvas.onmouseup = (event) => {
     }
     dragState = null;
   }
+  mousePos = null;
 };
 brushCanvas.onmousemove = (event) => {
   let position = getCanvasMousePosition(event);
+  mousePos = position;
   if (dragState !== null) {
     switch (dragState.state) {
       case "still":
@@ -213,6 +225,7 @@ brushCanvas.onmouseleave = (_) => {
   let ctx = brushCanvas.getContext("2d");
   ctx.clearRect(0, 0, brushCanvas.width, brushCanvas.height);
   dragState = null;
+  mousePos = null;
 };
 
 document.onkeydown = (event) => {
