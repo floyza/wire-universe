@@ -1,4 +1,7 @@
-use std::time::Duration;
+use std::{
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 use axum::{
     extract::{
@@ -27,6 +30,7 @@ mod wireworld;
 struct AppState {
     world_sender: broadcast::Sender<World>,
     update_sender: mpsc::UnboundedSender<CellModification>,
+    last_world: Arc<Mutex<Arc<World>>>,
 }
 
 async fn handler(ws: WebSocketUpgrade, state: State<AppState>) -> Response {
@@ -35,6 +39,7 @@ async fn handler(ws: WebSocketUpgrade, state: State<AppState>) -> Response {
             socket,
             state.world_sender.subscribe(),
             state.update_sender.clone(),
+            state.last_world.clone(),
         )
     })
 }
@@ -61,6 +66,7 @@ enum FromClient {
         w: usize,
         h: usize,
     },
+    StartStream,
 }
 
 #[cfg(test)]
@@ -77,6 +83,17 @@ mod tests {
             cell: CellState::Alive,
         };
         assert_eq!(serde_json::from_str::<FromClient>(js).unwrap(), msg);
+        let js = r#"{"SetView": { "x": 2, "y": 2, "h": 100, "w": 100 }}"#;
+        let msg = FromClient::SetView {
+            x: 2,
+            y: 2,
+            h: 100,
+            w: 100,
+        };
+        assert_eq!(serde_json::from_str::<FromClient>(js).unwrap(), msg);
+        let js = r#""StartStream""#;
+        let msg = FromClient::StartStream;
+        assert_eq!(serde_json::from_str::<FromClient>(&js).unwrap(), msg);
     }
 }
 
@@ -90,18 +107,22 @@ async fn handle_socket(
     mut socket: WebSocket,
     mut world_receiver: broadcast::Receiver<World>,
     update_sender: mpsc::UnboundedSender<CellModification>,
+    last_world: Arc<Mutex<Arc<World>>>,
 ) {
     let mut view_x = 0;
     let mut view_y = 0;
     let mut view_w = 30;
     let mut view_h = 30;
+    let mut sending = false;
     loop {
         select! {
             Ok(world) = world_receiver.recv() => {
-                let tiles = world.copy_slice(view_x, view_y, view_w, view_h);
-                let msg = FromServer::Refresh { x: view_x, y: view_y, tiles };
-                if socket.send(Message::Text(serde_json::to_string(&msg).unwrap())).await.is_err() {
-                    return;
+                if sending {
+                    let tiles = world.copy_slice(view_x, view_y, view_w, view_h);
+                    let msg = FromServer::Refresh { x: view_x, y: view_y, tiles };
+                    if socket.send(Message::Text(serde_json::to_string(&msg).unwrap())).await.is_err() {
+                        return;
+                    }
                 }
             }
             Some(msg) = socket.recv() => {
@@ -117,6 +138,15 @@ async fn handle_socket(
                                     view_y = y;
                                     view_w = w;
                                     view_h = h;
+                                }
+                                FromClient::StartStream => {
+                                    let world = last_world.lock().unwrap().clone();
+                                    let tiles = world.copy_slice(view_x, view_y, view_w, view_h);
+                                    let msg = FromServer::Refresh { x: view_x, y: view_y, tiles };
+                                    if socket.send(Message::Text(serde_json::to_string(&msg).unwrap())).await.is_err() {
+                                        return;
+                                    }
+                                    sending = true;
                                 }
                             }
                         }
@@ -139,10 +169,13 @@ async fn world_updator(
     mut world: World,
     world_sender: broadcast::Sender<World>,
     mut update_receiver: mpsc::UnboundedReceiver<CellModification>,
+    last_world: Arc<Mutex<Arc<World>>>,
 ) {
     let mut interval = interval(Duration::from_millis(500));
     loop {
+        // TODO share both of these clones so we have to do half as much cloning
         _ = world_sender.send(world.clone()); // it's fine if there isn't anyone listening
+        *last_world.lock().unwrap() = Arc::new(world.clone());
         loop {
             select! {
                 Some(CellModification {x, y, cell}) = update_receiver.recv() => {
@@ -161,11 +194,19 @@ async fn world_updator(
 async fn main() {
     let (tx, _) = broadcast::channel::<World>(16);
     let (tx2, rx) = mpsc::unbounded_channel::<CellModification>();
-    let world_task = task::spawn(world_updator(wireworld::sample_world(), tx.clone(), rx));
+    let starting_world = wireworld::sample_world();
+    let last_world = Arc::new(Mutex::new(Arc::new(starting_world.clone())));
+    let world_task = task::spawn(world_updator(
+        starting_world,
+        tx.clone(),
+        rx,
+        last_world.clone(),
+    ));
     let serve_dir = get_service(ServeDir::new("assets")).handle_error(handle_error);
     let state = AppState {
         world_sender: tx,
         update_sender: tx2,
+        last_world,
     };
     let app = Router::new()
         .route("/ws", get(handler))

@@ -1,4 +1,6 @@
 * Inbox
+** TODO use setview
+[[file:~/src/wire-universe/assets/script.js::// TODO send constantly send SetView. Also extract conversion to tiles into function]]
 ** TODO refactor viewport calculations
 [[file:~/src/wire-universe/assets/script.js::Math.floor((mousePos.x - viewport.x) / zoom),]]
 ** DONE make brush change trigger redrawing brush at mouse position

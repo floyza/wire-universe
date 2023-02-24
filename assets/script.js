@@ -140,7 +140,19 @@ function setBrush(newBrush) {
 }
 
 const socket = new WebSocket("ws://localhost:3000/ws");
-socket.onopen = (event) => {};
+socket.onopen = (event) => {
+  // TODO send constantly send SetView. Also extract conversion to tiles into function
+  let startX = Math.floor(-viewport.x / zoom);
+  let endX = Math.floor((-viewport.x + viewport.w) / zoom);
+  let startY = Math.floor(-viewport.y / zoom);
+  let endY = Math.floor((-viewport.y + viewport.h) / zoom);
+  let viewset = {
+    SetView: { x: startX, y: startY, w: endX - startX, h: endY - startY },
+  };
+  socket.send(JSON.stringify(viewset));
+  socket.send(JSON.stringify("StartStream"));
+};
+
 socket.onmessage = (event) => {
   let msg = JSON.parse(event.data);
   tileState.x = 0;
