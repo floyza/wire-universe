@@ -189,9 +189,9 @@ brushCanvas.onmousemove = (event) => {
           Math.sqrt(
             (position.x - dragState.start.x) ** 2 +
               (position.y - dragState.start.y) ** 2
-          ) >= 20
+          ) >= 5
         ) {
-          // distance >= 20 pixels = drag
+          // distance >= 5 pixels = drag
           dragState.state = "drag";
           applyDrag(
             position.x - dragState.start.x,
