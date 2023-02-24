@@ -3,35 +3,38 @@
 Websockets api
 
 * From Server
-** refresh
+** Refresh
 =x= and =y= should be the same as last received =x= and =y= from ~set-view~, and =tiles.length= should be equal to =h=, and =tiles[0].length= equal to =w=.
 #+begin_src js
 {
-  "type" = "refresh",
-  "x": 1,
-  "y": 1,
-  "tiles": [["Alive", "Wire", "Wire"],
-            ["Empty", "Empty", "Empty"],
-            ["Empty", "Empty", "Empty"]]
+  "Refresh": {
+    "x": 1,
+    "y": 1,
+    "tiles": [["Alive", "Wire", "Wire"],
+              ["Empty", "Empty", "Empty"],
+              ["Empty", "Empty", "Empty"]],
+  }
 }
 #+end_src
 * From Client
-** modify-cell
+** ModifyCell
 #+begin_src js
 {
-  "type" = "modify-cell",
-  "x": 5,
-  "y": 6,
-  "cell": "Dead",
+  "ModifyCell": {
+    "x": 5,
+    "y": 6,
+    "cell": "Dead",
+  }
 }
 #+end_src
-** set-view
+** SetView
 #+begin_src js
 {
-  "type" = "set-view",
-  "x": 2,
-  "y": 2,
-  "h": 100,
-  "w": 100,
+  "SetView": {
+    "x": 2,
+    "y": 2,
+    "h": 100,
+    "w": 100,
+  }
 }
 #+end_src
