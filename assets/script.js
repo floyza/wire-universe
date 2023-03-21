@@ -3,7 +3,8 @@ let brush = "Wire";
 let tileState = {};
 let dragState = null;
 let mousePos = null;
-let viewport = { x: 0, y: 0, w: 300, h: 300 };
+let viewport = { x: 0, y: 0, w: 600, h: 600 };
+let currentBounds = null;
 
 const canvas = document.getElementById("world-canvas");
 canvas.width = viewport.w;
@@ -12,6 +13,16 @@ const brushCanvas = document.getElementById("brush-canvas");
 brushCanvas.width = viewport.w;
 brushCanvas.height = viewport.h;
 const canvases = document.getElementById("canvases");
+
+function deepEqual(x, y) {
+  // see https://stackoverflow.com/a/32922084
+  return x && y && typeof x === "object" && typeof y === "object"
+    ? Object.keys(x).length === Object.keys(y).length &&
+        Object.keys(x).reduce(function (isEqual, key) {
+          return isEqual && deepEqual(x[key], y[key]);
+        }, true)
+    : x === y;
+}
 
 function paintTile(x, y, tile, target) {
   const ctx = target.getContext("2d");
@@ -134,6 +145,7 @@ function setBrush(newBrush) {
 const socket = new WebSocket("ws://localhost:3000/ws");
 socket.onopen = (event) => {
   let bounds = getViewedTileBounds();
+  currentBounds = bounds;
   let viewset = {
     SetView: bounds,
   };
@@ -162,11 +174,13 @@ function applyDrag(distX, distY) {
   viewport.x += distX;
   viewport.y += distY;
   let bounds = getViewedTileBounds();
-  let viewset = {
-    SetView: bounds,
-  };
-  // perhaps we should limit the number of these that we send
-  socket.send(JSON.stringify(viewset));
+  if (!deepEqual(bounds, currentBounds)) {
+    let viewset = {
+      SetView: bounds,
+    };
+    currentBounds = bounds;
+    socket.send(JSON.stringify(viewset));
+  }
 }
 
 brushCanvas.onmousedown = (event) => {
