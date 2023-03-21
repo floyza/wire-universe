@@ -24,6 +24,8 @@ use tokio::{sync::broadcast, task};
 use tower_http::services::ServeDir;
 use wireworld::{CellState, World};
 
+use crate::wireworld::Point;
+
 mod wireworld;
 
 #[derive(Clone)]
@@ -47,25 +49,16 @@ async fn handler(ws: WebSocketUpgrade, state: State<AppState>) -> Response {
 #[derive(Serialize, PartialEq, Debug)]
 enum FromServer {
     Refresh {
-        x: usize,
-        y: usize,
+        x: i32,
+        y: i32,
         tiles: Vec<Vec<CellState>>,
     },
 }
 
 #[derive(Deserialize, PartialEq, Debug)]
 enum FromClient {
-    ModifyCell {
-        x: usize,
-        y: usize,
-        cell: CellState,
-    },
-    SetView {
-        x: usize,
-        y: usize,
-        w: usize,
-        h: usize,
-    },
+    ModifyCell { x: i32, y: i32, cell: CellState },
+    SetView { x: i32, y: i32, w: i32, h: i32 },
     StartStream,
 }
 
@@ -98,8 +91,8 @@ mod tests {
 }
 
 struct CellModification {
-    x: usize,
-    y: usize,
+    x: i32,
+    y: i32,
     cell: wireworld::CellState,
 }
 
@@ -128,6 +121,7 @@ async fn handle_socket(
             Some(msg) = socket.recv() => {
                 match msg {
                     Ok(Message::Text(data)) => {
+                        println!("new mesg: {}", data);
                         if let Ok(val) = serde_json::from_str::<FromClient>(&data) {
                             match val {
                                 FromClient::ModifyCell { x, y, cell } => {
@@ -179,7 +173,7 @@ async fn world_updator(
         loop {
             select! {
                 Some(CellModification {x, y, cell}) = update_receiver.recv() => {
-                    world.tiles[World::idx(x, y)] = cell;
+                    world.set_tile(Point {x, y}, cell);
                 }
                 _ = interval.tick() => {
                     break;
@@ -194,7 +188,7 @@ async fn world_updator(
 async fn main() {
     let (tx, _) = broadcast::channel::<World>(16);
     let (tx2, rx) = mpsc::unbounded_channel::<CellModification>();
-    let starting_world = wireworld::sample_world();
+    let starting_world: World = wireworld::sample_world();
     let last_world = Arc::new(Mutex::new(Arc::new(starting_world.clone())));
     let world_task = task::spawn(world_updator(
         starting_world,

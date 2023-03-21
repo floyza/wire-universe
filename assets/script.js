@@ -162,14 +162,6 @@ function applyDrag(distX, distY) {
   viewport.x += distX;
   viewport.y += distY;
   let bounds = getViewedTileBounds();
-  if (bounds.x < 0) {
-    bounds.w = Math.max(0, bounds.w + bounds.x);
-    bounds.x = 0;
-  }
-  if (bounds.y < 0) {
-    bounds.h = Math.max(0, bounds.h + bounds.y);
-    bounds.y = 0;
-  }
   let viewset = {
     SetView: bounds,
   };
