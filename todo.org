@@ -1,6 +1,6 @@
 * Inbox
-** TODO load stuff surrounding current viewport
-** TODO make better wireworld rep server-side
+** DONE load stuff surrounding current viewport
+** DONE make better wireworld rep server-side
 ** DONE use setview
 [[file:~/src/wire-universe/assets/script.js::// TODO send constantly send SetView. Also extract conversion to tiles into function]]
 ** TODO refactor viewport calculations

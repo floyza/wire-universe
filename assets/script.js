@@ -1,10 +1,11 @@
-let zoom = 20;
+const zoom = 20;
+const tileBuffer = 5;
 let brush = "Wire";
 let tileState = {};
 let dragState = null;
 let mousePos = null;
 let viewport = { x: 0, y: 0, w: 600, h: 600 };
-let currentBounds = null;
+let currentBounds = null; // for checking if we /need/ to send a new setview
 
 const canvas = document.getElementById("world-canvas");
 canvas.width = viewport.w;
@@ -15,7 +16,8 @@ brushCanvas.height = viewport.h;
 const canvases = document.getElementById("canvases");
 
 function deepEqual(x, y) {
-  // see https://stackoverflow.com/a/32922084
+  // why is this not in javascript?
+  // from https://stackoverflow.com/a/32922084
   return x && y && typeof x === "object" && typeof y === "object"
     ? Object.keys(x).length === Object.keys(y).length &&
         Object.keys(x).reduce(function (isEqual, key) {
@@ -144,12 +146,7 @@ function setBrush(newBrush) {
 
 const socket = new WebSocket("ws://localhost:3000/ws");
 socket.onopen = (event) => {
-  let bounds = getViewedTileBounds();
-  currentBounds = bounds;
-  let viewset = {
-    SetView: bounds,
-  };
-  socket.send(JSON.stringify(viewset));
+  sendNewBounds();
   socket.send(JSON.stringify("StartStream"));
 };
 
@@ -173,7 +170,15 @@ function getCanvasMousePosition(event) {
 function applyDrag(distX, distY) {
   viewport.x += distX;
   viewport.y += distY;
+  sendNewBounds();
+}
+
+function sendNewBounds() {
   let bounds = getViewedTileBounds();
+  bounds.x -= tileBuffer;
+  bounds.y -= tileBuffer;
+  bounds.w += tileBuffer * 2;
+  bounds.h += tileBuffer * 2;
   if (!deepEqual(bounds, currentBounds)) {
     let viewset = {
       SetView: bounds,
@@ -195,7 +200,13 @@ brushCanvas.onmouseup = (event) => {
       const tileX = Math.floor((position.x - viewport.x) / zoom);
       const tileY = Math.floor((position.y - viewport.y) / zoom);
       paintTile(tileX, tileY, brush, canvas);
-      const message = { ModifyCell: { x: tileX, y: tileY, cell: brush } };
+      const message = {
+        ModifyCell: {
+          x: tileX,
+          y: tileY,
+          cell: brush,
+        },
+      };
       socket.send(JSON.stringify(message));
     }
     dragState = null;
