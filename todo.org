@@ -8,3 +8,4 @@
 ** DONE make brush change trigger redrawing brush at mouse position
 [[file:~/src/wire-universe/assets/script.js::document.onkeydown = (event) => {]]
 ** TODO place palette on top of canvas?
+** TODO send refresh when a client sends a setview in case the refresh rate is low
