@@ -2,11 +2,11 @@
 ** DONE load stuff surrounding current viewport
 ** DONE make better wireworld rep server-side
 ** DONE use setview
-[[file:~/src/wire-universe/assets/script.js::// TODO send constantly send SetView. Also extract conversion to tiles into function]]
+[[file:~/src/wire-universe/assets/main.js::// TODO send constantly send SetView. Also extract conversion to tiles into function]]
 ** TODO refactor viewport calculations
-[[file:~/src/wire-universe/assets/script.js::Math.floor((mousePos.x - viewport.x) / zoom),]]
+[[file:~/src/wire-universe/assets/main.js::Math.floor((mousePos.x - viewport.x) / zoom),]]
 ** DONE make brush change trigger redrawing brush at mouse position
-[[file:~/src/wire-universe/assets/script.js::document.onkeydown = (event) => {]]
+[[file:~/src/wire-universe/assets/main.js::document.onkeydown = (event) => {]]
 ** TODO place palette on top of canvas?
 ** TODO send refresh when a client sends a setview in case the refresh rate is low
 ** TODO optimize moving around/scrolling canvas
