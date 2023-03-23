@@ -171,7 +171,7 @@ function getCanvasMousePosition(pt) {
 }
 
 function globalMousePositionToTile(pt) {
-  let position = getCanvasMousePosition(event);
+  let position = getCanvasMousePosition(pt);
   const tileX = Math.floor((position.x + viewport.x) / zoom);
   const tileY = Math.floor((position.y + viewport.y) / zoom);
   return {
