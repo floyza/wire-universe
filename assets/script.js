@@ -1,12 +1,13 @@
 "use strict";
-const zoom = 20;
+let fracZoom = 20;
+let zoom = fracZoom; // Math.round(fracZoom)
 const tileBuffer = 5;
 let brush = "Wire";
 let tileState = {};
 let dragState = null;
 let mousePos = null;
 // x,y = top left x,y of world
-let viewport = { x: 0, y: 0, w: 600, h: 600 };
+let viewport = { x: 0, y: 0, w: 600, h: 800 };
 let currentBounds = null; // for checking if we /need/ to send a new setview
 
 const canvas = document.getElementById("world-canvas");
@@ -268,7 +269,7 @@ brushCanvas.onmouseleave = (_) => {
   mousePos = null;
 };
 
-document.onkeydown = (event) => {
+window.onkeydown = (event) => {
   if (event.key === "a") {
     setBrush("Wire");
   } else if (event.key === "s") {
@@ -278,4 +279,26 @@ document.onkeydown = (event) => {
   } else if (event.key === "f") {
     setBrush("Empty");
   }
+};
+
+function changeZoomTo(newZoom) {
+  let ratio = newZoom / zoom;
+  viewport.x = (viewport.x + viewport.w / 2) * ratio - viewport.w / 2;
+  viewport.x = Math.round(viewport.x);
+  viewport.y = (viewport.y + viewport.h / 2) * ratio - viewport.h / 2;
+  viewport.y = Math.round(viewport.y);
+  zoom = newZoom;
+}
+
+brushCanvas.onwheel = (event) => {
+  let newZoom = (fracZoom += event.deltaY * -0.01);
+  if (newZoom < 1) {
+    fracZoom = 1;
+    changeZoomTo(1);
+  } else {
+    fracZoom = newZoom;
+    changeZoomTo(Math.round(fracZoom));
+  }
+  renderTiles();
+  sendNewBounds();
 };
