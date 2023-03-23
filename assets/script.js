@@ -161,10 +161,20 @@ socket.onmessage = (event) => {
   renderTiles();
 };
 
-function getCanvasMousePosition(event) {
+function getCanvasMousePosition(pt) {
   return {
-    x: event.pageX - canvases.offsetLeft - brushCanvas.offsetLeft,
-    y: event.pageY - canvases.offsetTop - brushCanvas.offsetTop,
+    x: pt.x - canvases.offsetLeft - brushCanvas.offsetLeft,
+    y: pt.y - canvases.offsetTop - brushCanvas.offsetTop,
+  };
+}
+
+function globalMousePositionToTile(pt) {
+  let position = getCanvasMousePosition(event);
+  const tileX = Math.floor((position.x - viewport.x) / zoom);
+  const tileY = Math.floor((position.y - viewport.y) / zoom);
+  return {
+    x: tileX,
+    y: tileY,
   };
 }
 
@@ -190,21 +200,19 @@ function sendNewBounds() {
 }
 
 brushCanvas.onmousedown = (event) => {
-  let position = getCanvasMousePosition(event);
+  let position = getCanvasMousePosition({ x: event.pageX, y: event.pageY });
   mousePos = position;
   dragState = { start: position, state: "still" };
 };
 brushCanvas.onmouseup = (event) => {
   if (dragState !== null) {
     if (dragState.state === "still") {
-      let position = getCanvasMousePosition(event);
-      const tileX = Math.floor((position.x - viewport.x) / zoom);
-      const tileY = Math.floor((position.y - viewport.y) / zoom);
-      paintTile(tileX, tileY, brush, canvas);
+      let tile = globalMousePositionToTile({ x: event.pageX, y: event.pageY });
+      paintTile(tile.x, tile.y, brush, canvas);
       const message = {
         ModifyCell: {
-          x: tileX,
-          y: tileY,
+          x: tile.x,
+          y: tile.y,
           cell: brush,
         },
       };
@@ -215,7 +223,7 @@ brushCanvas.onmouseup = (event) => {
   mousePos = null;
 };
 brushCanvas.onmousemove = (event) => {
-  let position = getCanvasMousePosition(event);
+  let position = getCanvasMousePosition({ x: event.pageX, y: event.pageY });
   mousePos = position;
   if (dragState !== null) {
     switch (dragState.state) {
