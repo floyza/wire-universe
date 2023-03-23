@@ -11,3 +11,5 @@
 ** TODO send refresh when a client sends a setview in case the refresh rate is low
 ** TODO optimize moving around/scrolling canvas
 Take the already drawn thing and move it around instead of redrawing a ton of stuff. it gets pretty gnarly when you are trying to redraw a 1000x1000 canvas pixel by pixel at 160fps
+** TODO refactor more stuff into modules
+** TODO zoom in on mouse pointer instead of center
