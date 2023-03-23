@@ -5,6 +5,7 @@ let brush = "Wire";
 let tileState = {};
 let dragState = null;
 let mousePos = null;
+// x,y = top left x,y of world
 let viewport = { x: 0, y: 0, w: 600, h: 600 };
 let currentBounds = null; // for checking if we /need/ to send a new setview
 
@@ -45,7 +46,7 @@ function paintTile(x, y, tile, target) {
     default:
       alert("ack! paintTile() error: " + tile);
   }
-  ctx.fillRect(viewport.x + x * zoom, viewport.y + y * zoom, zoom, zoom);
+  ctx.fillRect(x * zoom - viewport.x, y * zoom - viewport.y, zoom, zoom);
 }
 
 function getTile(x, y) {
@@ -61,10 +62,10 @@ function getTile(x, y) {
 function getViewedTileBounds() {
   // I'm unsure of this math. This should be tested
   // TODO test
-  let startX = Math.floor(-viewport.x / zoom);
-  let endX = Math.floor((-viewport.x + viewport.w) / zoom);
-  let startY = Math.floor(-viewport.y / zoom);
-  let endY = Math.floor((-viewport.y + viewport.h) / zoom);
+  let startX = Math.floor(viewport.x / zoom);
+  let endX = Math.floor((viewport.x + viewport.w) / zoom);
+  let startY = Math.floor(viewport.y / zoom);
+  let endY = Math.floor((viewport.y + viewport.h) / zoom);
   return { x: startX, y: startY, w: endX - startX + 1, h: endY - startY + 1 };
 }
 
@@ -118,8 +119,8 @@ function setBrush(newBrush) {
   }
   if (mousePos !== null) {
     paintTile(
-      Math.floor((mousePos.x - viewport.x) / zoom),
-      Math.floor((mousePos.y - viewport.y) / zoom),
+      Math.floor((mousePos.x + viewport.x) / zoom),
+      Math.floor((mousePos.y + viewport.y) / zoom),
       brush,
       brushCanvas
     );
@@ -170,8 +171,8 @@ function getCanvasMousePosition(pt) {
 
 function globalMousePositionToTile(pt) {
   let position = getCanvasMousePosition(event);
-  const tileX = Math.floor((position.x - viewport.x) / zoom);
-  const tileY = Math.floor((position.y - viewport.y) / zoom);
+  const tileX = Math.floor((position.x + viewport.x) / zoom);
+  const tileY = Math.floor((position.y + viewport.y) / zoom);
   return {
     x: tileX,
     y: tileY,
@@ -237,8 +238,8 @@ brushCanvas.onmousemove = (event) => {
           // distance >= 5 pixels = drag
           dragState.state = "drag";
           applyDrag(
-            position.x - dragState.start.x,
-            position.y - dragState.start.y
+            dragState.start.x - position.x,
+            dragState.start.y - position.y
           );
           dragState.lastPos = position;
           renderTiles();
@@ -246,16 +247,16 @@ brushCanvas.onmousemove = (event) => {
         break;
       case "drag":
         applyDrag(
-          position.x - dragState.lastPos.x,
-          position.y - dragState.lastPos.y
+          dragState.lastPos.x - position.x,
+          dragState.lastPos.y - position.y
         );
         dragState.lastPos = position;
         renderTiles();
         break;
     }
   }
-  const tileX = Math.floor((position.x - viewport.x) / zoom);
-  const tileY = Math.floor((position.y - viewport.y) / zoom);
+  const tileX = Math.floor((position.x + viewport.x) / zoom);
+  const tileY = Math.floor((position.y + viewport.y) / zoom);
   let ctx = brushCanvas.getContext("2d");
   ctx.clearRect(0, 0, brushCanvas.width, brushCanvas.height);
   paintTile(tileX, tileY, brush, brushCanvas);
