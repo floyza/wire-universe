@@ -100,14 +100,14 @@ class Drawer {
       default:
         alert("ack! setBrush error: invalid brush: " + newBrush);
     }
-    if (brushPos !== null) {
-      this.paintTile(
-        this.brushPos.x,
-        this.brushPos.y,
-        this.brush,
-        this.brushCanvas
-      );
+    if (this.brushPos !== null) {
+      self.drawTip(this.brushPos);
     }
+  }
+  drawTip(pos) {
+    let ctx = this.brushCanvas.getContext("2d");
+    ctx.clearRect(0, 0, this.brushCanvas.width, this.brushCanvas.height);
+    this.paintTile(pos.x, pos.y, this.brush, this.brushCanvas);
   }
 }
 

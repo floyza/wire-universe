@@ -73,6 +73,10 @@ function changeZoomTo(drawer, newZoom) {
   drawer.zoom = newZoom;
   drawer.renderTiles(tileState);
   sendNewBounds(drawer.getViewedTileBounds());
+
+  if (appDrawer.brushPos !== null) {
+    appDrawer.drawTip(appDrawer.brushPos);
+  }
 }
 
 appDrawer.brushCanvas.onmousedown = (event) => {
@@ -137,14 +141,7 @@ appDrawer.brushCanvas.onmousemove = (event) => {
         break;
     }
   }
-  let ctx = appDrawer.brushCanvas.getContext("2d");
-  ctx.clearRect(
-    0,
-    0,
-    appDrawer.brushCanvas.width,
-    appDrawer.brushCanvas.height
-  );
-  appDrawer.paintTile(tile.x, tile.y, appDrawer.brush, appDrawer.brushCanvas);
+  appDrawer.drawTip(tile);
 };
 appDrawer.brushCanvas.onmouseleave = (_) => {
   let ctx = appDrawer.brushCanvas.getContext("2d");
