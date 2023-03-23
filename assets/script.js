@@ -128,41 +128,6 @@ function setBrush(newBrush) {
   }
 }
 
-{
-  let wire = document.getElementById("paint-wire");
-  let electron = document.getElementById("paint-electron");
-  let tail = document.getElementById("paint-tail");
-  let blank = document.getElementById("paint-blank");
-  wire.onclick = (_) => {
-    setBrush("Wire");
-  };
-  electron.onclick = (_) => {
-    setBrush("Alive");
-  };
-  tail.onclick = (_) => {
-    setBrush("Dead");
-  };
-  blank.onclick = (_) => {
-    setBrush("Empty");
-  };
-}
-
-const socket = new WebSocket("ws://localhost:3000/ws");
-socket.onopen = (event) => {
-  sendNewBounds();
-  socket.send(JSON.stringify("StartStream"));
-};
-
-socket.onmessage = (event) => {
-  let msg = JSON.parse(event.data);
-  tileState.x = msg.Refresh.x;
-  tileState.y = msg.Refresh.y;
-  tileState.tiles = msg.Refresh.tiles;
-  tileState.w = tileState.tiles[0].length;
-  tileState.h = tileState.tiles.length;
-  renderTiles();
-};
-
 function getCanvasMousePosition(pt) {
   return {
     x: pt.x - canvases.offsetLeft - brushCanvas.offsetLeft,
@@ -183,6 +148,7 @@ function globalMousePositionToTile(pt) {
 function applyDrag(distX, distY) {
   viewport.x += distX;
   viewport.y += distY;
+  renderTiles();
   sendNewBounds();
 }
 
@@ -199,6 +165,15 @@ function sendNewBounds() {
     currentBounds = bounds;
     socket.send(JSON.stringify(viewset));
   }
+}
+
+function changeZoomTo(newZoom) {
+  let ratio = newZoom / zoom;
+  viewport.x = (viewport.x + viewport.w / 2) * ratio - viewport.w / 2;
+  viewport.x = Math.round(viewport.x);
+  viewport.y = (viewport.y + viewport.h / 2) * ratio - viewport.h / 2;
+  viewport.y = Math.round(viewport.y);
+  zoom = newZoom;
 }
 
 brushCanvas.onmousedown = (event) => {
@@ -243,7 +218,6 @@ brushCanvas.onmousemove = (event) => {
             dragState.start.y - position.y
           );
           dragState.lastPos = position;
-          renderTiles();
         }
         break;
       case "drag":
@@ -252,7 +226,6 @@ brushCanvas.onmousemove = (event) => {
           dragState.lastPos.y - position.y
         );
         dragState.lastPos = position;
-        renderTiles();
         break;
     }
   }
@@ -281,15 +254,6 @@ window.onkeydown = (event) => {
   }
 };
 
-function changeZoomTo(newZoom) {
-  let ratio = newZoom / zoom;
-  viewport.x = (viewport.x + viewport.w / 2) * ratio - viewport.w / 2;
-  viewport.x = Math.round(viewport.x);
-  viewport.y = (viewport.y + viewport.h / 2) * ratio - viewport.h / 2;
-  viewport.y = Math.round(viewport.y);
-  zoom = newZoom;
-}
-
 brushCanvas.onwheel = (event) => {
   let newZoom = (fracZoom += event.deltaY * -0.01);
   if (newZoom < 1) {
@@ -301,4 +265,39 @@ brushCanvas.onwheel = (event) => {
   }
   renderTiles();
   sendNewBounds();
+};
+
+{
+  let wire = document.getElementById("paint-wire");
+  let electron = document.getElementById("paint-electron");
+  let tail = document.getElementById("paint-tail");
+  let blank = document.getElementById("paint-blank");
+  wire.onclick = (_) => {
+    setBrush("Wire");
+  };
+  electron.onclick = (_) => {
+    setBrush("Alive");
+  };
+  tail.onclick = (_) => {
+    setBrush("Dead");
+  };
+  blank.onclick = (_) => {
+    setBrush("Empty");
+  };
+}
+
+const socket = new WebSocket("ws://localhost:3000/ws");
+socket.onopen = (event) => {
+  sendNewBounds();
+  socket.send(JSON.stringify("StartStream"));
+};
+
+socket.onmessage = (event) => {
+  let msg = JSON.parse(event.data);
+  tileState.x = msg.Refresh.x;
+  tileState.y = msg.Refresh.y;
+  tileState.tiles = msg.Refresh.tiles;
+  tileState.w = tileState.tiles[0].length;
+  tileState.h = tileState.tiles.length;
+  renderTiles();
 };
