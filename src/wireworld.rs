@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 #[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq)]
+#[repr(u8)]
 pub enum CellState {
     Alive,
     Dead,
@@ -11,6 +12,7 @@ pub enum CellState {
 }
 
 #[derive(Copy, Clone, Debug)]
+#[repr(u8)]
 enum CellStateInternal {
     Alive,
     Dead,

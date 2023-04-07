@@ -14,12 +14,7 @@ use axum::{
     Router,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use tokio::{
-    select,
-    sync::mpsc,
-    time::{interval, Interval},
-};
+use tokio::{select, sync::mpsc, time::interval};
 use tokio::{sync::broadcast, task};
 use tower_http::services::ServeDir;
 use wireworld::{CellState, World};
