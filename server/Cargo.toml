@@ -1,0 +1,15 @@
+[package]
+name = "wire-universe_server"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = { version = "0.6", features = [ "ws" ] }
+tokio = { version = "1", features = ["full"] }
+tower = "0.4"
+tower-http = { version = "0.3", features = ["fs"] }
+serde_json = "1.0.93"
+
+[dependencies.wire-universe]
+version = "0.1.0"
+path = "../common/"

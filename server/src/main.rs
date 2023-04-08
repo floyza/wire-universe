@@ -13,15 +13,14 @@ use axum::{
     routing::{get, get_service},
     Router,
 };
-use serde::{Deserialize, Serialize};
 use tokio::{select, sync::mpsc, time::interval};
 use tokio::{sync::broadcast, task};
 use tower_http::services::ServeDir;
-use wireworld::{CellState, World};
 
-use crate::wireworld::Point;
-
-mod wireworld;
+use wire_universe::{
+    proto::{FromClient, FromServer},
+    CellState, Point, World,
+};
 
 #[derive(Clone)]
 struct AppState {
@@ -41,29 +40,13 @@ async fn handler(ws: WebSocketUpgrade, state: State<AppState>) -> Response {
     })
 }
 
-#[derive(Serialize, PartialEq, Debug)]
-enum FromServer {
-    Refresh {
-        x: i32,
-        y: i32,
-        tiles: Vec<Vec<CellState>>,
-    },
-}
-
-#[derive(Deserialize, PartialEq, Debug)]
-enum FromClient {
-    ModifyCell { x: i32, y: i32, cell: CellState },
-    SetView { x: i32, y: i32, w: i32, h: i32 },
-    StartStream,
-}
-
 #[cfg(test)]
 mod tests {
-    use crate::wireworld::CellState;
+    use wire_universe::proto::FromClient;
+    use wire_universe::CellState;
 
     #[test]
     fn from_client_deserialization() {
-        use super::FromClient;
         let js = r#"{"ModifyCell": { "x": 1, "y": 5, "cell": "Alive" }}"#;
         let msg = FromClient::ModifyCell {
             x: 1,
@@ -88,7 +71,7 @@ mod tests {
 struct CellModification {
     x: i32,
     y: i32,
-    cell: wireworld::CellState,
+    cell: CellState,
 }
 
 async fn handle_socket(
@@ -183,7 +166,7 @@ async fn world_updator(
 async fn main() {
     let (tx, _) = broadcast::channel::<World>(16);
     let (tx2, rx) = mpsc::unbounded_channel::<CellModification>();
-    let starting_world: World = wireworld::sample_world();
+    let starting_world: World = wire_universe::sample_world();
     let last_world = Arc::new(Mutex::new(Arc::new(starting_world.clone())));
     let world_task = task::spawn(world_updator(
         starting_world,
