@@ -19,8 +19,13 @@ use tower_http::services::ServeDir;
 
 use wire_universe::{
     proto::{FromClient, FromServer},
-    CellState, Point, World,
+    CellState,
 };
+use world::World;
+
+use crate::world::Point;
+
+mod world;
 
 #[derive(Clone)]
 struct AppState {
@@ -166,7 +171,7 @@ async fn world_updator(
 async fn main() {
     let (tx, _) = broadcast::channel::<World>(16);
     let (tx2, rx) = mpsc::unbounded_channel::<CellModification>();
-    let starting_world: World = wire_universe::sample_world();
+    let starting_world: World = world::sample_world();
     let last_world = Arc::new(Mutex::new(Arc::new(starting_world.clone())));
     let world_task = task::spawn(world_updator(
         starting_world,
