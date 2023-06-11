@@ -22,6 +22,7 @@ features = [
   "WebSocket",
   "MessageEvent",
   "HtmlButtonElement",
+  "MouseEvent",
 ]
 
 [dependencies.wire-universe]

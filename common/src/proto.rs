@@ -6,6 +6,7 @@ pub enum FromServer {
     Refresh {
         x: i32,
         y: i32,
+        /// indexed by y then x
         tiles: Vec<Vec<CellState>>,
     },
 }
