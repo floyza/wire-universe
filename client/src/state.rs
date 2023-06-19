@@ -11,6 +11,8 @@ pub struct Viewport {
     pub h: i32,
 }
 
+const TILE_BUFFER: i32 = 5;
+
 pub struct World {
     pub x: i32,
     pub y: i32,
@@ -18,7 +20,7 @@ pub struct World {
 }
 
 impl World {
-    pub fn getCell(&self, x: i32, y: i32) -> Option<CellState> {
+    pub fn get_cell(&self, x: i32, y: i32) -> Option<CellState> {
         let iy = y - self.y;
         let ix = x - self.x;
         if iy >= 0 && iy < self.tiles.len() as i32 {
@@ -30,7 +32,7 @@ impl World {
         }
         None
     }
-    pub fn setCell(&mut self, x: i32, y: i32, val: CellState) -> Option<()> {
+    pub fn set_cell(&mut self, x: i32, y: i32, val: CellState) -> Option<()> {
         let iy = y - self.y;
         let ix = x - self.x;
         if iy >= 0 && iy < self.tiles.len() as i32 {
@@ -110,7 +112,7 @@ impl State {
         Some(())
     }
     fn draw_brush(&self) {
-        // todo!();
+        // TODO
     }
     pub fn mouse_pos_to_pixel(&self, x: i32, y: i32) -> (i32, i32) {
         (
@@ -128,7 +130,7 @@ impl State {
         let (x, y) = self.mouse_pos_to_pixel(x, y);
         self.pixel_to_tile(x, y)
     }
-    pub fn process_command(&mut self, cmd: Command) -> Option<()> {
+    pub fn process_command(&mut self, cmd: Command) -> Result<(), JsValue> {
         console_log!("cmd get: {:?}", cmd);
         match cmd {
             Command::TileHover { x, y } => {
@@ -140,7 +142,7 @@ impl State {
                 self.draw_brush();
             }
             Command::TileClick { x, y } => {
-                self.world.setCell(x, y, self.brush);
+                self.world.set_cell(x, y, self.brush);
                 paint_tile(&self.canvas, self.brush, x, y);
                 let msg = FromClient::ModifyCell {
                     x,
@@ -148,17 +150,29 @@ impl State {
                     cell: self.brush,
                 };
                 let json = serde_json::to_string(&msg).unwrap();
-                self.socket.send_with_str(&json).ok()?;
+                self.socket.send_with_str(&json)?;
             }
             Command::MouseDrag {
                 start_x,
                 start_y,
                 end_x,
                 end_y,
-            } => todo!(),
-            Command::Zoom { amount } => todo!(),
+            } => {
+                self.viewport.x += end_x - start_x;
+                self.viewport.y += end_y - start_y;
+                // TODO redraw
+                let msg = FromClient::SetView {
+                    x: self.viewport.x - TILE_BUFFER,
+                    y: self.viewport.y - TILE_BUFFER,
+                    w: self.viewport.w + TILE_BUFFER * 2,
+                    h: self.viewport.h + TILE_BUFFER * 2,
+                };
+                self.socket
+                    .send_with_str(&serde_json::to_string(&msg).unwrap())?;
+            }
+            Command::Zoom { amount } => console_log!("unimplemented zoom"),
         }
-        Some(())
+        Ok(())
     }
 }
 
