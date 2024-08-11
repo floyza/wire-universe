@@ -28,6 +28,3 @@ features = [
 [dependencies.wire-universe]
 version = "0.1.0"
 path = "../common/"
-
-[profile.release]
-opt-level = "s"
