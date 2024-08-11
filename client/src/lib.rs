@@ -2,6 +2,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use js_sys::JsString;
 use state::{Command, MousedownState, State};
+use util::document;
 use wasm_bindgen::prelude::*;
 use web_sys::{MessageEvent, WebSocket};
 use wire_universe::{proto::FromClient, CellState};
@@ -37,20 +38,28 @@ fn init_websockets() -> Result<WebSocket, JsValue> {
     Ok(ws)
 }
 
-fn init_brushes() -> Option<()> {
-    let document = web_sys::window().unwrap().document().unwrap();
-    let callback = Closure::<dyn FnMut()>::new(|| {
-        console_log!("pressed button");
-        // set_brush(CellState::Wire);
+fn init_brush(st: Rc<RefCell<State>>, elem_name: &str, cell: CellState) -> Result<(), JsValue> {
+    let document = document()?;
+
+    let callback = Closure::<dyn FnMut()>::new(move || {
+        st.borrow_mut().set_brush(cell).unwrap();
     });
     document
-        .get_element_by_id("paint-wire")?
-        .dyn_into::<web_sys::HtmlButtonElement>()
-        .ok()?
+        .get_element_by_id(elem_name)
+        .ok_or(JsValue::from_str(&(format!("#{} missing", elem_name))))?
+        .dyn_into::<web_sys::HtmlButtonElement>()?
         .set_onclick(Some(callback.as_ref().unchecked_ref()));
     callback.forget();
 
-    Some(())
+    Ok(())
+}
+
+fn init_brushes(st: Rc<RefCell<State>>) -> Result<(), JsValue> {
+    init_brush(st.clone(), "paint-wire", CellState::Wire)?;
+    init_brush(st.clone(), "paint-electron", CellState::Alive)?;
+    init_brush(st.clone(), "paint-tail", CellState::Dead)?;
+    init_brush(st.clone(), "paint-blank", CellState::Empty)?;
+    Ok(())
 }
 
 fn init_input_callbacks(st: Rc<RefCell<State>>) {
@@ -59,7 +68,9 @@ fn init_input_callbacks(st: Rc<RefCell<State>>) {
     {
         let st = st.clone();
         let callback = Closure::<dyn FnMut()>::new(move || {
-            st.borrow_mut().process_command(Command::TileHoverStop);
+            st.borrow_mut()
+                .process_command(Command::TileHoverStop)
+                .unwrap();
         });
         brush_canvas.set_onmouseleave(Some(callback.as_ref().unchecked_ref()));
         callback.forget();
@@ -68,7 +79,7 @@ fn init_input_callbacks(st: Rc<RefCell<State>>) {
         let st = st.clone();
         let callback = Closure::<dyn FnMut(_)>::new(move |ev: web_sys::MouseEvent| {
             let mut st = st.borrow_mut();
-            st.process_command(Command::TileHoverStop);
+            st.process_command(Command::TileHoverStop).unwrap();
             let (px, py) = st.mouse_pos_to_pixel(ev.page_x(), ev.page_y());
             st.mousedown_state = Some(MousedownState::Still {
                 start_x: px,
@@ -84,7 +95,8 @@ fn init_input_callbacks(st: Rc<RefCell<State>>) {
             let mut st = st.borrow_mut();
             if let Some(MousedownState::Still { start_x, start_y }) = st.mousedown_state {
                 let (tx, ty) = st.pixel_to_tile(start_x, start_y);
-                st.process_command(Command::TileClick { x: tx, y: ty });
+                st.process_command(Command::TileClick { x: tx, y: ty })
+                    .unwrap();
             }
             st.mousedown_state = None;
         });
@@ -109,7 +121,8 @@ fn init_input_callbacks(st: Rc<RefCell<State>>) {
                                 start_y,
                                 end_x: px,
                                 end_y: py,
-                            });
+                            })
+                            .unwrap();
                         }
                     }
                     MousedownState::Drag { prev_x, prev_y } => {
@@ -122,7 +135,8 @@ fn init_input_callbacks(st: Rc<RefCell<State>>) {
                             start_y: y,
                             end_x: px,
                             end_y: py,
-                        });
+                        })
+                        .unwrap();
                     }
                 }
             }
@@ -136,7 +150,7 @@ fn init_input_callbacks(st: Rc<RefCell<State>>) {
 fn start() -> Result<(), JsValue> {
     console_log!("Starting wasm");
     let socket = init_websockets()?;
-    let document = web_sys::window().unwrap().document().unwrap();
+    let document = document()?;
     let canvas = document
         .get_element_by_id("world-canvas")
         .expect("missing #world-canvas")
@@ -172,7 +186,7 @@ fn start() -> Result<(), JsValue> {
         mousedown_state: None,
     };
     let st = Rc::new(RefCell::new(st));
-    init_brushes().unwrap();
+    init_brushes(st.clone())?;
     init_input_callbacks(st);
     return Ok(());
 }

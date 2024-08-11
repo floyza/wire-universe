@@ -2,7 +2,7 @@ use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, HtmlElement, WebSocket};
 use wire_universe::{proto::FromClient, CellState};
 
-use crate::util::console_log;
+use crate::util::{console_log, document};
 
 pub struct Viewport {
     pub x: i32,
@@ -92,27 +92,75 @@ pub enum Command {
 }
 
 impl State {
-    fn set_brush(&self, s: CellState) -> Option<()> {
-        let document = web_sys::window()?.document()?;
-        let wire = document.get_element_by_id("paint-wire")?;
-        let electron = document.get_element_by_id("paint-electron")?;
-        let tail = document.get_element_by_id("paint-tail")?;
-        let blank = document.get_element_by_id("paint-blank")?;
-        wire.set_attribute("data-selected", "false").ok()?;
-        electron.set_attribute("data-selected", "false").ok()?;
-        tail.set_attribute("data-selected", "false").ok()?;
-        blank.set_attribute("data-selected", "false").ok()?;
+    pub fn set_brush(&self, s: CellState) -> Result<(), JsValue> {
+        let document = document()?;
+        let wire = document
+            .get_element_by_id("paint-wire")
+            .ok_or(JsValue::from_str("#paint-wire missing"))?;
+        let electron = document
+            .get_element_by_id("paint-electron")
+            .ok_or(JsValue::from_str("#paint-electron missing"))?;
+        let tail = document
+            .get_element_by_id("paint-tail")
+            .ok_or(JsValue::from_str("#paint-tail missing"))?;
+        let blank = document
+            .get_element_by_id("paint-blank")
+            .ok_or(JsValue::from_str("#paint-blank missing"))?;
+        wire.set_attribute("data-selected", "false")?;
+        electron.set_attribute("data-selected", "false")?;
+        tail.set_attribute("data-selected", "false")?;
+        blank.set_attribute("data-selected", "false")?;
         match s {
-            CellState::Alive => electron.set_attribute("data-selected", "true").ok()?,
-            CellState::Dead => tail.set_attribute("data-selected", "true").ok()?,
-            CellState::Empty => blank.set_attribute("data-selected", "true").ok()?,
-            CellState::Wire => wire.set_attribute("data-selected", "true").ok()?,
+            CellState::Alive => electron.set_attribute("data-selected", "true")?,
+            CellState::Dead => tail.set_attribute("data-selected", "true")?,
+            CellState::Empty => blank.set_attribute("data-selected", "true")?,
+            CellState::Wire => wire.set_attribute("data-selected", "true")?,
         };
-        self.draw_brush();
-        Some(())
+        self.draw_brush()?;
+        Ok(())
     }
-    fn draw_brush(&self) {
-        // TODO
+    fn draw_brush(&self) -> Result<(), JsValue> {
+        let ctx = self
+            .brush_canvas
+            .get_context("2d")?
+            .unwrap()
+            .dyn_into::<CanvasRenderingContext2d>()?;
+        ctx.clear_rect(
+            0.0,
+            0.0,
+            self.brush_canvas.width() as f64,
+            self.brush_canvas.height() as f64,
+        );
+        if let Some((x, y)) = self.brush_pos {
+            self.paint_tile(&self.brush_canvas, self.brush, x, y)?;
+        }
+        Ok(())
+    }
+    fn paint_tile(
+        &self,
+        canvas: &HtmlCanvasElement,
+        tile: CellState,
+        x: i32,
+        y: i32,
+    ) -> Result<(), JsValue> {
+        let ctx = canvas
+            .get_context("2d")?
+            .unwrap()
+            .dyn_into::<CanvasRenderingContext2d>()?;
+        let color = match tile {
+            CellState::Alive => "blue",
+            CellState::Dead => "grey",
+            CellState::Empty => "white",
+            CellState::Wire => "orange",
+        };
+        ctx.set_fill_style(&JsValue::from_str(color));
+        ctx.fill_rect(
+            (x * self.zoom - self.viewport.x) as f64,
+            (y * self.zoom - self.viewport.y) as f64,
+            self.zoom as f64,
+            self.zoom as f64,
+        );
+        Ok(())
     }
     pub fn mouse_pos_to_pixel(&self, x: i32, y: i32) -> (i32, i32) {
         (
@@ -135,15 +183,15 @@ impl State {
         match cmd {
             Command::TileHover { x, y } => {
                 self.brush_pos = Some((x, y));
-                self.draw_brush();
+                self.draw_brush()?;
             }
             Command::TileHoverStop => {
                 self.brush_pos = None;
-                self.draw_brush();
+                self.draw_brush()?;
             }
             Command::TileClick { x, y } => {
                 self.world.set_cell(x, y, self.brush);
-                paint_tile(&self.canvas, self.brush, x, y);
+                self.paint_tile(&self.canvas, self.brush, x, y)?;
                 let msg = FromClient::ModifyCell {
                     x,
                     y,
@@ -174,20 +222,4 @@ impl State {
         }
         Ok(())
     }
-}
-
-fn paint_tile(canvas: &HtmlCanvasElement, tile: CellState, x: i32, y: i32) -> Option<()> {
-    let ctx = canvas
-        .get_context("2d")
-        .ok()??
-        .dyn_into::<CanvasRenderingContext2d>()
-        .ok()?;
-    let color = match tile {
-        CellState::Alive => "blue",
-        CellState::Dead => "grey",
-        CellState::Empty => "white",
-        CellState::Wire => "orange",
-    };
-    ctx.set_fill_style(&JsValue::from_str(color));
-    Some(())
 }
