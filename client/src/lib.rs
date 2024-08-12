@@ -79,7 +79,6 @@ fn init_input_callbacks(st: Rc<RefCell<State>>) {
         let st = st.clone();
         let callback = Closure::<dyn FnMut(_)>::new(move |ev: web_sys::MouseEvent| {
             let mut st = st.borrow_mut();
-            st.process_command(Command::TileHoverStop).unwrap();
             let (px, py) = st.mouse_pos_to_pixel(ev.page_x(), ev.page_y());
             st.mousedown_state = Some(MousedownState::Still {
                 start_x: px,
@@ -140,6 +139,9 @@ fn init_input_callbacks(st: Rc<RefCell<State>>) {
                     }
                 }
             }
+            let (tx, ty) = st.mouse_pos_to_tile(ev.page_x(), ev.page_y());
+            st.process_command(Command::TileHover { x: tx, y: ty })
+                .unwrap();
         });
         brush_canvas.set_onmousemove(Some(callback.as_ref().unchecked_ref()));
         callback.forget();
