@@ -178,6 +178,17 @@ impl State {
         let (x, y) = self.mouse_pos_to_pixel(x, y);
         self.pixel_to_tile(x, y)
     }
+    pub fn send_viewport(&self) -> Result<(), JsValue> {
+        let msg = FromClient::SetView {
+            x: (self.viewport.x / self.zoom) - TILE_BUFFER,
+            y: (self.viewport.y / self.zoom) - TILE_BUFFER,
+            w: (self.viewport.w / self.zoom) + 1 + TILE_BUFFER * 2,
+            h: (self.viewport.h / self.zoom) + 1 + TILE_BUFFER * 2,
+        };
+        self.socket
+            .send_with_str(&serde_json::to_string(&msg).unwrap())?;
+        Ok(())
+    }
     pub fn process_command(&mut self, cmd: Command) -> Result<(), JsValue> {
         console_log!("cmd get: {:?}", cmd);
         match cmd {
@@ -209,14 +220,7 @@ impl State {
                 self.viewport.x += end_x - start_x;
                 self.viewport.y += end_y - start_y;
                 // TODO redraw
-                let msg = FromClient::SetView {
-                    x: self.viewport.x - TILE_BUFFER,
-                    y: self.viewport.y - TILE_BUFFER,
-                    w: self.viewport.w + TILE_BUFFER * 2,
-                    h: self.viewport.h + TILE_BUFFER * 2,
-                };
-                self.socket
-                    .send_with_str(&serde_json::to_string(&msg).unwrap())?;
+                self.send_viewport()?;
             }
             Command::Zoom { amount } => console_log!("unimplemented zoom"),
         }

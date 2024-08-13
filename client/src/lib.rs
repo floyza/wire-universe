@@ -1,11 +1,14 @@
 use std::{cell::RefCell, rc::Rc};
 
-use js_sys::JsString;
 use state::{Command, MousedownState, State};
 use util::document;
 use wasm_bindgen::prelude::*;
+
 use web_sys::{MessageEvent, WebSocket};
-use wire_universe::{proto::FromClient, CellState};
+use wire_universe::{
+    proto::{FromClient, FromServer},
+    CellState,
+};
 
 use crate::{
     state::{Viewport, World},
@@ -15,13 +18,26 @@ use crate::{
 mod state;
 mod util;
 
-fn init_websockets() -> Result<WebSocket, JsValue> {
-    let ws = WebSocket::new("ws://localhost:3000/ws")?;
-    let onmessage_callback = Closure::<dyn FnMut(_)>::new(move |e: MessageEvent| {
-        if let Ok(txt) = e.data().dyn_into::<JsString>() {
-            // console_log!("message event, received Text: {:?}", txt);
-        } else {
-            // console_log!("message event, received Unknown: {:?}", e.data());
+pub fn init_websocket(st: Rc<RefCell<State>>) {
+    let ws = st.borrow().socket.clone();
+    let onmessage_callback = Closure::<dyn FnMut(_)>::new({
+        let st = st.clone();
+        move |e: MessageEvent| {
+            if let Some(txt) = e.data().as_string() {
+                if let Ok(val) = serde_json::from_str::<FromServer>(&txt) {
+                    match val {
+                        FromServer::Refresh { x, y, tiles } => {
+                            let world = &mut st.borrow_mut().world;
+                            world.tiles = tiles;
+                            world.x = x;
+                            world.y = y;
+                            // TODO redraw
+                        }
+                    }
+                }
+            } else {
+                console_log!("non-string message: {:?}", e.data());
+            }
         }
     });
     ws.set_onmessage(Some(onmessage_callback.as_ref().unchecked_ref()));
@@ -29,13 +45,12 @@ fn init_websockets() -> Result<WebSocket, JsValue> {
 
     let cloned_ws = ws.clone();
     let onopen_callback = Closure::<dyn FnMut()>::new(move || {
+        st.borrow().send_viewport().unwrap();
         let msg = serde_json::to_string(&FromClient::StartStream).unwrap();
         cloned_ws.send_with_str(&msg).unwrap();
     });
     ws.set_onopen(Some(onopen_callback.as_ref().unchecked_ref()));
     onopen_callback.forget();
-
-    Ok(ws)
 }
 
 fn init_brush(st: Rc<RefCell<State>>, elem_name: &str, cell: CellState) -> Result<(), JsValue> {
@@ -151,7 +166,7 @@ fn init_input_callbacks(st: Rc<RefCell<State>>) {
 #[wasm_bindgen(start)]
 fn start() -> Result<(), JsValue> {
     console_log!("Starting wasm");
-    let socket = init_websockets()?;
+    let socket = WebSocket::new("ws://localhost:3000/ws")?;
     let document = document()?;
     let canvas = document
         .get_element_by_id("world-canvas")
@@ -188,6 +203,7 @@ fn start() -> Result<(), JsValue> {
         mousedown_state: None,
     };
     let st = Rc::new(RefCell::new(st));
+    init_websocket(st.clone());
     init_brushes(st.clone())?;
     init_input_callbacks(st);
     return Ok(());
