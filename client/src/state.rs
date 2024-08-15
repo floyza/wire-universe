@@ -248,8 +248,8 @@ impl State {
                 end_x,
                 end_y,
             } => {
-                self.viewport.x += end_x - start_x;
-                self.viewport.y += end_y - start_y;
+                self.viewport.x -= end_x - start_x;
+                self.viewport.y -= end_y - start_y;
                 self.render_tiles()?;
                 self.send_viewport()?;
             }
