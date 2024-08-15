@@ -27,11 +27,12 @@ pub fn init_websocket(st: Rc<RefCell<State>>) {
                 if let Ok(val) = serde_json::from_str::<FromServer>(&txt) {
                     match val {
                         FromServer::Refresh { x, y, tiles } => {
-                            let world = &mut st.borrow_mut().world;
+                            let st = &mut st.borrow_mut();
+                            let world = &mut st.world;
                             world.tiles = tiles;
                             world.x = x;
                             world.y = y;
-                            // TODO redraw
+                            st.render_tiles().unwrap();
                         }
                     }
                 }

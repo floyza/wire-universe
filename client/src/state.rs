@@ -119,6 +119,28 @@ impl State {
         self.draw_brush()?;
         Ok(())
     }
+    pub fn render_tiles(&self) -> Result<(), JsValue> {
+        let ctx = self
+            .canvas
+            .get_context("2d")?
+            .unwrap()
+            .dyn_into::<CanvasRenderingContext2d>()?;
+        ctx.clear_rect(
+            0.0,
+            0.0,
+            self.canvas.width() as f64,
+            self.canvas.height() as f64,
+        );
+        let vp = self.tile_viewport();
+        for x in vp.x..(vp.x + vp.w) {
+            for y in vp.y..(vp.y + vp.h) {
+                if let Some(t) = self.world.get_cell(x, y) {
+                    self.paint_tile(&self.canvas, t, x, y)?;
+                }
+            }
+        }
+        Ok(())
+    }
     fn draw_brush(&self) -> Result<(), JsValue> {
         let ctx = self
             .brush_canvas
@@ -178,12 +200,21 @@ impl State {
         let (x, y) = self.mouse_pos_to_pixel(x, y);
         self.pixel_to_tile(x, y)
     }
-    pub fn send_viewport(&self) -> Result<(), JsValue> {
-        let msg = FromClient::SetView {
+    pub fn tile_viewport(&self) -> Viewport {
+        Viewport {
             x: (self.viewport.x / self.zoom) - TILE_BUFFER,
             y: (self.viewport.y / self.zoom) - TILE_BUFFER,
             w: (self.viewport.w / self.zoom) + 1 + TILE_BUFFER * 2,
             h: (self.viewport.h / self.zoom) + 1 + TILE_BUFFER * 2,
+        }
+    }
+    pub fn send_viewport(&self) -> Result<(), JsValue> {
+        let tvp = self.tile_viewport();
+        let msg = FromClient::SetView {
+            x: tvp.x,
+            y: tvp.y,
+            w: tvp.w,
+            h: tvp.h,
         };
         self.socket
             .send_with_str(&serde_json::to_string(&msg).unwrap())?;
@@ -219,7 +250,7 @@ impl State {
             } => {
                 self.viewport.x += end_x - start_x;
                 self.viewport.y += end_y - start_y;
-                // TODO redraw
+                self.render_tiles()?;
                 self.send_viewport()?;
             }
             Command::Zoom { amount } => console_log!("unimplemented zoom"),
