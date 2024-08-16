@@ -4,6 +4,7 @@ use wire_universe::{proto::FromClient, CellState};
 
 use crate::util::{console_log, document};
 
+#[derive(Debug, Clone)]
 pub struct Viewport {
     pub x: i32,
     pub y: i32,
@@ -13,6 +14,7 @@ pub struct Viewport {
 
 const TILE_BUFFER: i32 = 5;
 
+#[derive(Debug, Clone)]
 pub struct World {
     pub x: i32,
     pub y: i32,
