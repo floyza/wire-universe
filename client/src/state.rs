@@ -192,8 +192,8 @@ impl State {
     }
     pub fn pixel_to_tile(&self, x: i32, y: i32) -> (i32, i32) {
         (
-            (x + self.viewport.x) / self.zoom,
-            (y + self.viewport.y) / self.zoom,
+            (x + self.viewport.x).div_euclid(self.zoom),
+            (y + self.viewport.y).div_euclid(self.zoom),
         )
     }
     pub fn mouse_pos_to_tile(&self, x: i32, y: i32) -> (i32, i32) {
@@ -202,10 +202,10 @@ impl State {
     }
     pub fn tile_viewport(&self) -> Viewport {
         Viewport {
-            x: (self.viewport.x / self.zoom) - TILE_BUFFER,
-            y: (self.viewport.y / self.zoom) - TILE_BUFFER,
-            w: (self.viewport.w / self.zoom) + 1 + TILE_BUFFER * 2,
-            h: (self.viewport.h / self.zoom) + 1 + TILE_BUFFER * 2,
+            x: (self.viewport.x.div_euclid(self.zoom)) - TILE_BUFFER,
+            y: (self.viewport.y.div_euclid(self.zoom)) - TILE_BUFFER,
+            w: (self.viewport.w.div_euclid(self.zoom)) + 1 + TILE_BUFFER * 2,
+            h: (self.viewport.h.div_euclid(self.zoom)) + 1 + TILE_BUFFER * 2,
         }
     }
     pub fn send_viewport(&self) -> Result<(), JsValue> {

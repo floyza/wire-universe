@@ -84,9 +84,9 @@ fn init_input_callbacks(st: Rc<RefCell<State>>) {
     {
         let st = st.clone();
         let callback = Closure::<dyn FnMut()>::new(move || {
-            st.borrow_mut()
-                .process_command(Command::TileHoverStop)
-                .unwrap();
+            let mut st = st.borrow_mut();
+            st.process_command(Command::TileHoverStop).unwrap();
+            st.mousedown_state = None;
         });
         brush_canvas.set_onmouseleave(Some(callback.as_ref().unchecked_ref()));
         callback.forget();
