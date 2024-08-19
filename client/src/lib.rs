@@ -1,7 +1,7 @@
 use std::{cell::RefCell, rc::Rc};
 
 use state::{Command, MousedownState, State};
-use util::document;
+use util::{document, window};
 use wasm_bindgen::prelude::*;
 
 use web_sys::{MessageEvent, WebSocket};
@@ -11,10 +11,12 @@ use wire_universe::{
 };
 
 use crate::{
+    keyboard::install_keyhandler,
     state::{Viewport, World},
     util::console_log,
 };
 
+mod keyboard;
 mod state;
 mod util;
 
@@ -206,6 +208,7 @@ fn start() -> Result<(), JsValue> {
     let st = Rc::new(RefCell::new(st));
     init_websocket(st.clone());
     init_brushes(st.clone())?;
+    install_keyhandler(st.clone())?;
     init_input_callbacks(st);
     return Ok(());
 }

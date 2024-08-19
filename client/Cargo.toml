@@ -23,6 +23,7 @@ features = [
   "MessageEvent",
   "HtmlButtonElement",
   "MouseEvent",
+  "KeyboardEvent",
 ]
 
 [dependencies.wire-universe]

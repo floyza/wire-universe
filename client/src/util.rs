@@ -18,5 +18,13 @@ pub fn document() -> Result<Document, JsValue> {
     }
 }
 
+pub fn window() -> Result<Window, JsValue> {
+    if let Some(doc) = web_sys::window() {
+        Ok(doc)
+    } else {
+        Err(JsValue::from_str("nonexistant window"))
+    }
+}
+
 pub(crate) use console_log;
-use web_sys::Document;
+use web_sys::{Document, Window};
