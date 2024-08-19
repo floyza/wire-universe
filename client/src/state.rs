@@ -94,7 +94,8 @@ pub enum Command {
 }
 
 impl State {
-    pub fn set_brush(&self, s: CellState) -> Result<(), JsValue> {
+    pub fn set_brush(&mut self, s: CellState) -> Result<(), JsValue> {
+        self.brush = s;
         let document = document()?;
         let wire = document
             .get_element_by_id("paint-wire")
