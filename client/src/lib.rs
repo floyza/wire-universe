@@ -20,7 +20,7 @@ mod keyboard;
 mod state;
 mod util;
 
-pub fn init_websocket(st: Rc<RefCell<State>>) {
+fn init_websocket(st: Rc<RefCell<State>>) {
     let ws = st.borrow().socket.clone();
     let onmessage_callback = Closure::<dyn FnMut(_)>::new({
         let st = st.clone();
