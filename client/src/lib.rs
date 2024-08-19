@@ -4,7 +4,7 @@ use state::{Command, MousedownState, State};
 use util::{document, window};
 use wasm_bindgen::prelude::*;
 
-use web_sys::{MessageEvent, WebSocket};
+use web_sys::{MessageEvent, WebSocket, WheelEvent};
 use wire_universe::{
     proto::{FromClient, FromServer},
     CellState,
@@ -19,6 +19,23 @@ use crate::{
 mod keyboard;
 mod state;
 mod util;
+
+fn init_wheel_zoomer(st: Rc<RefCell<State>>) {
+    let callback = Closure::<dyn FnMut(_)>::new({
+        let st = st.clone();
+        move |e: WheelEvent| {
+            let mut st = st.borrow_mut();
+            st.process_command(Command::Zoom {
+                amount: e.delta_y() * -0.01,
+            })
+            .unwrap();
+        }
+    });
+    st.borrow()
+        .brush_canvas
+        .set_onwheel(Some(callback.as_ref().unchecked_ref()));
+    callback.forget();
+}
 
 fn init_websocket(st: Rc<RefCell<State>>) {
     let ws = st.borrow().socket.clone();
@@ -193,8 +210,8 @@ fn start() -> Result<(), JsValue> {
         viewport: Viewport {
             x: 0,
             y: 0,
-            w: 600,
-            h: 800,
+            w: 800,
+            h: 600,
         },
         brush: CellState::Wire,
         brush_pos: None,
@@ -202,12 +219,15 @@ fn start() -> Result<(), JsValue> {
         brush_canvas,
         canvases,
         zoom: 20,
+        partial_zoom: 0.,
         socket,
         mousedown_state: None,
     };
+    st.sync_canvas_size();
     let st = Rc::new(RefCell::new(st));
     init_websocket(st.clone());
     init_brushes(st.clone())?;
+    init_wheel_zoomer(st.clone());
     install_keyhandler(st.clone())?;
     init_input_callbacks(st);
     return Ok(());

@@ -24,6 +24,7 @@ features = [
   "HtmlButtonElement",
   "MouseEvent",
   "KeyboardEvent",
+  "WheelEvent",
 ]
 
 [dependencies.wire-universe]

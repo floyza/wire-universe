@@ -58,6 +58,7 @@ pub struct State {
     pub brush_canvas: HtmlCanvasElement,
     pub canvases: HtmlElement,
     pub zoom: i32,
+    pub partial_zoom: f64,
     pub socket: WebSocket,
     pub mousedown_state: Option<MousedownState>,
 }
@@ -89,7 +90,7 @@ pub enum Command {
         end_y: i32,
     },
     Zoom {
-        amount: f32,
+        amount: f64,
     },
 }
 
@@ -244,6 +245,22 @@ impl State {
             .send_with_str(&serde_json::to_string(&msg).unwrap())?;
         Ok(())
     }
+    fn set_zoom(&mut self, zoom: i32) -> Result<(), JsValue> {
+        let ratio = zoom as f64 / self.zoom as f64;
+        // flip these + -
+        self.viewport.x = ((self.viewport.x as f64 + self.viewport.w as f64 / 2.0) * ratio
+            - self.viewport.w as f64 / 2.0)
+            .round() as i32;
+        self.viewport.y = ((self.viewport.y as f64 + self.viewport.h as f64 / 2.0) * ratio
+            - self.viewport.h as f64 / 2.0)
+            .round() as i32;
+        self.zoom = zoom;
+
+        self.render_tiles()?;
+        self.send_viewport()?;
+        self.draw_brush()?;
+        Ok(())
+    }
     pub fn process_command(&mut self, cmd: Command) -> Result<(), JsValue> {
         console_log!("cmd get: {:?}", cmd);
         match cmd {
@@ -277,8 +294,23 @@ impl State {
                 self.render_tiles()?;
                 self.send_viewport()?;
             }
-            Command::Zoom { amount } => console_log!("unimplemented zoom"),
+            Command::Zoom { amount } => {
+                self.partial_zoom += amount;
+                let zoom_chg = self.partial_zoom.trunc();
+                if zoom_chg != 0.0 {
+                    self.partial_zoom -= zoom_chg;
+                    let new_zoom = (self.zoom + zoom_chg as i32).max(1);
+
+                    self.set_zoom(new_zoom)?;
+                }
+            }
         }
         Ok(())
+    }
+    pub fn sync_canvas_size(&self) {
+        self.canvas.set_width(self.viewport.w as u32);
+        self.canvas.set_height(self.viewport.h as u32);
+        self.brush_canvas.set_width(self.viewport.w as u32);
+        self.brush_canvas.set_height(self.viewport.h as u32);
     }
 }
