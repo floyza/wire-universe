@@ -157,7 +157,7 @@ impl State {
             self.brush_canvas.height() as f64,
         );
         if let Some((x, y)) = self.brush_pos {
-            self.paint_tile(&self.brush_canvas, self.brush, x, y)?;
+            self.paint_tile_outlined(&self.brush_canvas, self.brush, x, y)?;
         }
         Ok(())
     }
@@ -180,6 +180,27 @@ impl State {
         };
         ctx.set_fill_style(&JsValue::from_str(color));
         ctx.fill_rect(
+            (x * self.zoom - self.viewport.x) as f64,
+            (y * self.zoom - self.viewport.y) as f64,
+            self.zoom as f64,
+            self.zoom as f64,
+        );
+        Ok(())
+    }
+    fn paint_tile_outlined(
+        &self,
+        canvas: &HtmlCanvasElement,
+        tile: CellState,
+        x: i32,
+        y: i32,
+    ) -> Result<(), JsValue> {
+        self.paint_tile(canvas, tile, x, y)?;
+        let ctx = canvas
+            .get_context("2d")?
+            .unwrap()
+            .dyn_into::<CanvasRenderingContext2d>()?;
+        ctx.set_stroke_style(&JsValue::from_str("black"));
+        ctx.stroke_rect(
             (x * self.zoom - self.viewport.x) as f64,
             (y * self.zoom - self.viewport.y) as f64,
             self.zoom as f64,
