@@ -7,4 +7,6 @@ trap 'trap - TERM && killall wire-universe_server && kill -- -$$' INT TERM EXIT
 cargo watch -w common -w client -s "wasm-pack build client --debug -t web --no-typescript -d ../assets/pkg" &
 cargo watch -w common -w server -x run &
 
+cd assets && python -m http.server || return
+
 wait
