@@ -225,6 +225,13 @@ impl State {
         let (x, y) = self.mouse_pos_to_pixel(x, y);
         self.pixel_to_tile(x, y)
     }
+    // get the center of the tile in pixels from the top left of the canvas
+    pub fn tile_to_pixel(&self, x: i32, y: i32) -> (i32, i32) {
+        (
+            x * self.zoom - self.viewport.x,
+            y * self.zoom - self.viewport.y,
+        )
+    }
     pub fn tile_viewport(&self) -> Viewport {
         Viewport {
             x: (self.viewport.x.div_euclid(self.zoom)) - TILE_BUFFER,
@@ -247,13 +254,14 @@ impl State {
     }
     fn set_zoom(&mut self, zoom: i32) -> Result<(), JsValue> {
         let ratio = zoom as f64 / self.zoom as f64;
-        // flip these + -
-        self.viewport.x = ((self.viewport.x as f64 + self.viewport.w as f64 / 2.0) * ratio
-            - self.viewport.w as f64 / 2.0)
-            .round() as i32;
-        self.viewport.y = ((self.viewport.y as f64 + self.viewport.h as f64 / 2.0) * ratio
-            - self.viewport.h as f64 / 2.0)
-            .round() as i32;
+        let (tgx, tgy) = if let Some((tx, ty)) = self.brush_pos {
+            let (px, py) = self.tile_to_pixel(tx, ty);
+            (px as f64, py as f64)
+        } else {
+            (self.viewport.w as f64 / 2.0, self.viewport.h as f64 / 2.0)
+        };
+        self.viewport.x = ((self.viewport.x as f64 + tgx) * ratio - tgx).round() as i32;
+        self.viewport.y = ((self.viewport.y as f64 + tgy) * ratio - tgy).round() as i32;
         self.zoom = zoom;
 
         self.render_tiles()?;
