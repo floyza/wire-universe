@@ -270,7 +270,6 @@ impl State {
         Ok(())
     }
     pub fn process_command(&mut self, cmd: Command) -> Result<(), JsValue> {
-        console_log!("cmd get: {:?}", cmd);
         match cmd {
             Command::TileHover { x, y } => {
                 self.brush_pos = Some((x, y));
