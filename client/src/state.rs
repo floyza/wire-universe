@@ -249,7 +249,7 @@ impl State {
             h: tvp.h,
         };
         self.socket
-            .send_with_str(&serde_json::to_string(&msg).unwrap())?;
+            .send_with_u8_array(&rmp_serde::to_vec(&msg).unwrap())?;
         Ok(())
     }
     fn set_zoom(&mut self, zoom: i32) -> Result<(), JsValue> {
@@ -287,8 +287,8 @@ impl State {
                     y,
                     cell: self.brush,
                 };
-                let json = serde_json::to_string(&msg).unwrap();
-                self.socket.send_with_str(&json)?;
+                self.socket
+                    .send_with_u8_array(&rmp_serde::to_vec(&msg).unwrap())?;
             }
             Command::MouseDrag {
                 start_x,

@@ -1,7 +1,8 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{any::Any, cell::RefCell, rc::Rc};
 
+use js_sys::Object;
 use state::{Command, MousedownState, State};
-use util::{document, window};
+use util::document;
 use wasm_bindgen::prelude::*;
 
 use web_sys::{MessageEvent, WebSocket, WheelEvent};
@@ -42,21 +43,30 @@ fn init_websocket(st: Rc<RefCell<State>>) {
     let onmessage_callback = Closure::<dyn FnMut(_)>::new({
         let st = st.clone();
         move |e: MessageEvent| {
-            if let Some(txt) = e.data().as_string() {
-                if let Ok(val) = serde_json::from_str::<FromServer>(&txt) {
-                    match val {
-                        FromServer::Refresh { x, y, tiles } => {
-                            let st = &mut st.borrow_mut();
-                            let world = &mut st.world;
-                            world.tiles = tiles;
-                            world.x = x;
-                            world.y = y;
-                            st.render_tiles().unwrap();
+            if let Ok(blob) = e.data().dyn_into::<web_sys::Blob>() {
+                let fr = web_sys::FileReader::new().unwrap();
+                let fr_c = fr.clone();
+                let st = st.clone();
+                // TODO create FnOnce that frees itself when called
+                let onloadend_cb =
+                    Closure::<dyn FnMut(_)>::new(move |_e: web_sys::ProgressEvent| {
+                        let data = js_sys::Uint8Array::new(&fr_c.result().unwrap()).to_vec();
+                        if let Ok(val) = rmp_serde::from_slice::<FromServer>(&data) {
+                            match val {
+                                FromServer::Refresh { x, y, tiles } => {
+                                    let st = &mut st.borrow_mut();
+                                    let world = &mut st.world;
+                                    world.tiles = tiles;
+                                    world.x = x;
+                                    world.y = y;
+                                    st.render_tiles().unwrap();
+                                }
+                            }
                         }
-                    }
-                }
-            } else {
-                console_log!("non-string message: {:?}", e.data());
+                    });
+                fr.set_onloadend(Some(onloadend_cb.as_ref().unchecked_ref()));
+                fr.read_as_array_buffer(&blob).expect("blob not readable");
+                onloadend_cb.forget();
             }
         }
     });
@@ -66,8 +76,9 @@ fn init_websocket(st: Rc<RefCell<State>>) {
     let cloned_ws = ws.clone();
     let onopen_callback = Closure::<dyn FnMut()>::new(move || {
         st.borrow().send_viewport().unwrap();
-        let msg = serde_json::to_string(&FromClient::StartStream).unwrap();
-        cloned_ws.send_with_str(&msg).unwrap();
+        cloned_ws
+            .send_with_u8_array(&rmp_serde::to_vec(&FromClient::StartStream).unwrap())
+            .unwrap();
     });
     ws.set_onopen(Some(onopen_callback.as_ref().unchecked_ref()));
     onopen_callback.forget();

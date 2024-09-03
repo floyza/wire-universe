@@ -45,34 +45,6 @@ async fn handler(ws: WebSocketUpgrade, state: State<AppState>) -> Response {
     })
 }
 
-#[cfg(test)]
-mod tests {
-    use wire_universe::proto::FromClient;
-    use wire_universe::CellState;
-
-    #[test]
-    fn from_client_deserialization() {
-        let js = r#"{"ModifyCell": { "x": 1, "y": 5, "cell": "Alive" }}"#;
-        let msg = FromClient::ModifyCell {
-            x: 1,
-            y: 5,
-            cell: CellState::Alive,
-        };
-        assert_eq!(serde_json::from_str::<FromClient>(js).unwrap(), msg);
-        let js = r#"{"SetView": { "x": 2, "y": 2, "h": 100, "w": 100 }}"#;
-        let msg = FromClient::SetView {
-            x: 2,
-            y: 2,
-            h: 100,
-            w: 100,
-        };
-        assert_eq!(serde_json::from_str::<FromClient>(js).unwrap(), msg);
-        let js = r#""StartStream""#;
-        let msg = FromClient::StartStream;
-        assert_eq!(serde_json::from_str::<FromClient>(&js).unwrap(), msg);
-    }
-}
-
 struct CellModification {
     x: i32,
     y: i32,
@@ -96,16 +68,15 @@ async fn handle_socket(
                 if sending {
                     let tiles = world.copy_slice(view_x, view_y, view_w, view_h);
                     let msg = FromServer::Refresh { x: view_x, y: view_y, tiles };
-                    if socket.send(Message::Text(serde_json::to_string(&msg).unwrap())).await.is_err() {
+                    if socket.send(Message::Binary(rmp_serde::to_vec(&msg).unwrap())).await.is_err() {
                         return;
                     }
                 }
             }
             Some(msg) = socket.recv() => {
                 match msg {
-                    Ok(Message::Text(data)) => {
-                        println!("new mesg: {}", data);
-                        if let Ok(val) = serde_json::from_str::<FromClient>(&data) {
+                    Ok(Message::Binary(data)) => {
+                        if let Ok(val) = rmp_serde::from_slice::<FromClient>(&data) {
                             match val {
                                 FromClient::ModifyCell { x, y, cell } => {
                                     _ = update_sender.send(CellModification { x, y, cell });
@@ -120,7 +91,7 @@ async fn handle_socket(
                                     let world = last_world.lock().unwrap().clone();
                                     let tiles = world.copy_slice(view_x, view_y, view_w, view_h);
                                     let msg = FromServer::Refresh { x: view_x, y: view_y, tiles };
-                                    if socket.send(Message::Text(serde_json::to_string(&msg).unwrap())).await.is_err() {
+                                    if socket.send(Message::Binary(rmp_serde::to_vec(&msg).unwrap())).await.is_err() {
                                         return;
                                     }
                                     sending = true;
