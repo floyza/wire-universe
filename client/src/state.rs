@@ -58,7 +58,7 @@ pub struct State {
     pub brush_canvas: HtmlCanvasElement,
     pub canvases: HtmlElement,
     pub zoom: i32,
-    pub partial_zoom: f64,
+    pub zoom_float: f64,
     pub socket: WebSocket,
     pub mousedown_state: Option<MousedownState>,
 }
@@ -302,12 +302,15 @@ impl State {
                 self.send_viewport()?;
             }
             Command::Zoom { amount } => {
-                self.partial_zoom += amount;
-                let zoom_chg = self.partial_zoom.trunc();
-                if zoom_chg != 0.0 {
-                    self.partial_zoom -= zoom_chg;
-                    let new_zoom = (self.zoom + zoom_chg as i32).max(1);
-
+                self.zoom_float *= 1.05_f64.powf(amount);
+                if self.zoom_float < 5. {
+                    self.zoom_float = 5.;
+                }
+                if self.zoom_float > 80. {
+                    self.zoom_float = 80.;
+                }
+                let new_zoom = self.zoom_float as i32;
+                if new_zoom != self.zoom {
                     self.set_zoom(new_zoom)?;
                 }
             }

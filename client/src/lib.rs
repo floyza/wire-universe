@@ -230,7 +230,7 @@ fn start() -> Result<(), JsValue> {
         brush_canvas,
         canvases,
         zoom: 20,
-        partial_zoom: 0.,
+        zoom_float: 20.,
         socket,
         mousedown_state: None,
     };
