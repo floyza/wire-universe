@@ -26,7 +26,7 @@ use world::World;
 
 use crate::world::Point;
 
-mod world;
+pub mod world;
 
 #[derive(Clone)]
 struct AppState {
@@ -139,8 +139,7 @@ async fn world_updator(
     }
 }
 
-#[tokio::main]
-async fn main() {
+pub async fn serve() {
     let (tx, _) = broadcast::channel::<World>(16);
     let (tx2, rx) = mpsc::unbounded_channel::<CellModification>();
     let starting_world: World = World::from_wi(Path::new("./primes.wi")).unwrap();

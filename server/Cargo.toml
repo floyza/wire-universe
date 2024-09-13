@@ -3,6 +3,18 @@ name = "wire-universe_server"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+path = "src/lib.rs"
+bench = false
+
+[[bin]]
+path = "src/bin.rs"
+name = "wire-universe_server"
+
+[[bench]]
+name = "simulate-computer"
+harness = false
+
 [dependencies]
 axum = { version = "0.6", features = [ "ws" ] }
 tokio = { version = "1", features = ["full"] }
@@ -14,3 +26,6 @@ anyhow = "1.0"
 [dependencies.wire-universe]
 version = "0.1.0"
 path = "../common/"
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
