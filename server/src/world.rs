@@ -1,5 +1,6 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Path};
 
+use anyhow::{anyhow, Context, Result};
 use wire_universe::CellState;
 
 #[derive(Copy, Clone, Debug)]
@@ -44,6 +45,52 @@ impl World {
         World {
             tiles: HashMap::new(),
         }
+    }
+
+    pub fn from_wi(path: &Path) -> Result<World> {
+        let data = std::fs::read(path)
+            .context(format!("Failed to read wi file {}", path.to_string_lossy()))?;
+        let string = std::str::from_utf8(&data).context(format!(
+            "File {} contained non utf-8 characters",
+            path.to_string_lossy()
+        ))?;
+        let lines: Vec<_> = string.lines().collect();
+        let result = (|| -> Result<World> {
+            let (bounds, data) = lines
+                .split_first()
+                .ok_or_else(|| anyhow!("Too few lines"))?;
+            let (w, h) = match bounds.split_ascii_whitespace().collect::<Vec<_>>() {
+                v if v.len() == 2 => (v[0].parse::<usize>()?, v[1].parse::<usize>()?),
+                _ => Err(anyhow!("First line format not formatted '<w> <h>'"))?,
+            };
+            let mut world = World::new();
+            for y in 0..h {
+                for x in 0..w {
+                    let val = data
+                        .get(y)
+                        .and_then(|row| row.as_bytes().get(x))
+                        .ok_or_else(|| anyhow!("Dimensions incorrect"))?;
+                    let tile = match val {
+                        b'#' => Some(CellStateInternal::Wire),
+                        b'~' => Some(CellStateInternal::Dead),
+                        b'@' => Some(CellStateInternal::Alive),
+                        _ => None,
+                    };
+                    if let Some(tile) = tile {
+                        world.tiles.insert(
+                            Point {
+                                x: x as i32,
+                                y: y as i32,
+                            },
+                            tile,
+                        );
+                    }
+                }
+            }
+            Ok(world)
+        })();
+        let world = result.context(format!("Failed to parse {}", path.to_string_lossy()))?;
+        Ok(world)
     }
 
     pub fn set_tile(&mut self, pos: Point, s: CellState) {

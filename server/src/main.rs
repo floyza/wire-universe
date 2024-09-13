@@ -1,4 +1,5 @@
 use std::{
+    path::Path,
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -142,7 +143,7 @@ async fn world_updator(
 async fn main() {
     let (tx, _) = broadcast::channel::<World>(16);
     let (tx2, rx) = mpsc::unbounded_channel::<CellModification>();
-    let starting_world: World = world::sample_world();
+    let starting_world: World = World::from_wi(Path::new("./primes.wi")).unwrap();
     let last_world = Arc::new(Mutex::new(Arc::new(starting_world.clone())));
     let world_task = task::spawn(world_updator(
         starting_world,
