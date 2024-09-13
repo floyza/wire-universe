@@ -48,11 +48,11 @@ impl World {
     }
 
     pub fn from_wi(path: &Path) -> Result<World> {
-        let data = std::fs::read(path)
-            .context(format!("Failed to read wi file {}", path.to_string_lossy()))?;
+        let data =
+            std::fs::read(path).context(format!("Failed to read wi file {}", path.display()))?;
         let string = std::str::from_utf8(&data).context(format!(
             "File {} contained non utf-8 characters",
-            path.to_string_lossy()
+            path.display()
         ))?;
         let lines: Vec<_> = string.lines().collect();
         let result = (|| -> Result<World> {
@@ -89,7 +89,7 @@ impl World {
             }
             Ok(world)
         })();
-        let world = result.context(format!("Failed to parse {}", path.to_string_lossy()))?;
+        let world = result.context(format!("Failed to parse {}", path.display()))?;
         Ok(world)
     }
 
