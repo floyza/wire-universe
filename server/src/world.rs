@@ -3,7 +3,7 @@ use std::{collections::HashMap, path::Path};
 use anyhow::{anyhow, Context, Result};
 use wire_universe::CellState;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 #[repr(u8)]
 enum CellStateInternal {
     Alive,
@@ -37,13 +37,17 @@ pub struct Point {
 
 #[derive(Clone, Debug)]
 pub struct World {
-    tiles: HashMap<Point, CellStateInternal>,
+    pts: HashMap<Point, usize>,
+    sts: Vec<CellStateInternal>,
+    nbors: Vec<Vec<usize>>,
 }
 
 impl World {
     pub fn new() -> World {
         World {
-            tiles: HashMap::new(),
+            pts: HashMap::new(),
+            sts: Vec::new(),
+            nbors: Vec::new(),
         }
     }
 
@@ -71,13 +75,13 @@ impl World {
                         .and_then(|row| row.as_bytes().get(x))
                         .ok_or_else(|| anyhow!("Dimensions incorrect"))?;
                     let tile = match val {
-                        b'#' => Some(CellStateInternal::Wire),
-                        b'~' => Some(CellStateInternal::Dead),
-                        b'@' => Some(CellStateInternal::Alive),
+                        b'#' => Some(CellState::Wire),
+                        b'~' => Some(CellState::Dead),
+                        b'@' => Some(CellState::Alive),
                         _ => None,
                     };
                     if let Some(tile) = tile {
-                        world.tiles.insert(
+                        world.set_tile(
                             Point {
                                 x: x as i32,
                                 y: y as i32,
@@ -94,20 +98,13 @@ impl World {
     }
 
     pub fn set_tile(&mut self, pos: Point, s: CellState) {
+        // TODO needs testing
         match cell_state_admit(s) {
-            Some(s) => self.tiles.insert(pos, s),
-            None => self.tiles.remove(&pos),
-        };
-    }
-
-    pub fn step(&mut self) {
-        let copy = self.clone();
-        for (pos, contents) in copy.tiles.iter() {
-            let new = match *contents {
-                CellStateInternal::Alive => CellStateInternal::Dead,
-                CellStateInternal::Dead => CellStateInternal::Wire,
-                CellStateInternal::Wire => {
-                    let mut living_neighbors = 0;
+            Some(s) => {
+                if let Some(&i) = self.pts.get(&pos) {
+                    self.sts[i] = s;
+                } else {
+                    let mut neighbors = Vec::new();
                     for i in [
                         Point {
                             x: pos.x - 1,
@@ -142,18 +139,62 @@ impl World {
                             y: pos.y + 1,
                         },
                     ] {
-                        if let Some(CellStateInternal::Alive) = copy.tiles.get(&i) {
-                            living_neighbors += 1;
+                        if let Some(&i) = self.pts.get(&i) {
+                            neighbors.push(i);
+                            self.nbors[i].push(self.sts.len());
                         }
                     }
-                    if living_neighbors == 1 || living_neighbors == 2 {
+                    self.sts.push(s);
+                    self.nbors.push(neighbors);
+                    self.pts.insert(pos, self.sts.len() - 1);
+                }
+            }
+            None => {
+                if let Some(i) = self.pts.remove(&pos) {
+                    for ni in self.nbors[i].clone() {
+                        self.nbors[ni].retain(|&x| x != i);
+                    }
+                    self.sts.swap_remove(i);
+                    self.nbors.swap_remove(i);
+                    // update neighbors for moved cell, which is now at `i`
+                    let old_i = self.sts.len();
+                    if i != old_i {
+                        // we don't need to update anything if we removed the last cell
+                        for &ni in &self.nbors[i].clone() {
+                            for nni in &mut self.nbors[ni] {
+                                if *nni == old_i {
+                                    *nni = i;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        };
+    }
+
+    pub fn step(&mut self) {
+        let mut adj = vec![0; self.sts.len()];
+        for (i, st) in self.sts.iter().enumerate() {
+            if *st == CellStateInternal::Alive {
+                for &n in &self.nbors[i] {
+                    adj[n] += 1;
+                }
+            }
+        }
+        for (i, &n) in adj.iter().enumerate() {
+            self.sts[i] = match self.sts[i] {
+                CellStateInternal::Alive => CellStateInternal::Dead,
+                CellStateInternal::Dead => CellStateInternal::Wire,
+                CellStateInternal::Wire => {
+                    if n == 1 || n == 2 {
                         CellStateInternal::Alive
                     } else {
                         CellStateInternal::Wire
                     }
                 }
-            };
-            self.tiles.insert(*pos, new);
+            }
         }
     }
 
@@ -162,7 +203,7 @@ impl World {
         for j in y..(y + h) {
             let mut row = Vec::new();
             for i in x..(x + w) {
-                let cell = self.tiles.get(&Point { x: i, y: j }).cloned();
+                let cell = self.pts.get(&Point { x: i, y: j }).map(|&i| self.sts[i]);
                 row.push(cell_state_expel(cell));
             }
             ret.push(row);
@@ -173,17 +214,9 @@ impl World {
 
 pub fn sample_world() -> World {
     let mut world = World::new();
-    world
-        .tiles
-        .insert(Point { x: 1, y: 0 }, CellStateInternal::Alive);
-    world
-        .tiles
-        .insert(Point { x: 0, y: 1 }, CellStateInternal::Dead);
-    world
-        .tiles
-        .insert(Point { x: 1, y: 2 }, CellStateInternal::Wire);
-    world
-        .tiles
-        .insert(Point { x: 2, y: 1 }, CellStateInternal::Wire);
+    world.set_tile(Point { x: 1, y: 0 }, CellState::Alive);
+    world.set_tile(Point { x: 0, y: 1 }, CellState::Dead);
+    world.set_tile(Point { x: 1, y: 2 }, CellState::Wire);
+    world.set_tile(Point { x: 2, y: 1 }, CellState::Wire);
     return world;
 }
