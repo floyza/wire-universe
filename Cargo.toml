@@ -6,3 +6,6 @@ members = [
   "common/",
 ]
 default-members = ["server/", "common/"]
+
+[profile.dev]
+opt-level = 2
