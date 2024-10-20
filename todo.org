@@ -3,8 +3,6 @@
 ** DONE make better wireworld rep server-side
 ** DONE use setview
 [[file:~/src/wire-universe/assets/main.js::// TODO send constantly send SetView. Also extract conversion to tiles into function]]
-** TODO refactor viewport calculations
-[[file:~/src/wire-universe/assets/main.js::Math.floor((mousePos.x - viewport.x) / zoom),]]
 ** DONE make brush change trigger redrawing brush at mouse position
 [[file:~/src/wire-universe/assets/main.js::document.onkeydown = (event) => {]]
 ** TODO place palette on top of canvas?
@@ -17,5 +15,7 @@ Take the already drawn thing and move it around instead of redrawing a ton of st
 Too much work, not necessarily even useful
 ** TODO figure out why the cursor square outline is bigger than the cursor square
 is browser specific? seems to only act like that on firefox, on chrome the outline seems wider at least
+** TODO add world simulation on client side so we only have to send the border + changes
+This may be not that important, and increases complexity a fair deal
 * Unimportant
 ** TODO Setup size optimization for js

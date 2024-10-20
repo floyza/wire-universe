@@ -12,7 +12,7 @@ pub struct Viewport {
     pub h: i32,
 }
 
-const TILE_BUFFER: i32 = 5;
+const TILE_BUFFER: f64 = 0.3;
 
 #[derive(Debug, Clone)]
 pub struct World {
@@ -233,11 +233,14 @@ impl State {
         )
     }
     pub fn tile_viewport(&self) -> Viewport {
+        let buffer_x = ((self.viewport.w / self.zoom) as f64 * TILE_BUFFER) as i32;
+        let buffer_y = ((self.viewport.h / self.zoom) as f64 * TILE_BUFFER) as i32;
+        // w and h are both always positive, so div_euclid == normal division
         Viewport {
-            x: (self.viewport.x.div_euclid(self.zoom)) - TILE_BUFFER,
-            y: (self.viewport.y.div_euclid(self.zoom)) - TILE_BUFFER,
-            w: (self.viewport.w.div_euclid(self.zoom)) + 1 + TILE_BUFFER * 2,
-            h: (self.viewport.h.div_euclid(self.zoom)) + 1 + TILE_BUFFER * 2,
+            x: (self.viewport.x.div_euclid(self.zoom)) - buffer_x,
+            y: (self.viewport.y.div_euclid(self.zoom)) - buffer_y,
+            w: (self.viewport.w / self.zoom) + 1 + buffer_x * 2,
+            h: (self.viewport.h / self.zoom) + 1 + buffer_y * 2,
         }
     }
     pub fn send_viewport(&self) -> Result<(), JsValue> {
