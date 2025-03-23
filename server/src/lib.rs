@@ -127,7 +127,7 @@ async fn world_updator(
     mut update_receiver: mpsc::UnboundedReceiver<CellModification>,
     last_world: Arc<Mutex<Arc<World>>>,
 ) {
-    let mut interval = interval(Duration::from_millis(500));
+    let mut interval = interval(Duration::from_millis(100));
     loop {
         // TODO share both of these clones so we have to do half as much cloning
         _ = world_sender.send(world.clone()); // it's fine if there isn't anyone listening
