@@ -1,6 +1,6 @@
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, HtmlElement, WebSocket};
-use wire_universe::{proto::FromClient, CellState};
+use wire_universe::{proto::FromClient, CellState, Point};
 
 use crate::util::{console_log, document};
 
@@ -22,6 +22,94 @@ pub struct World {
 }
 
 impl World {
+    // step the automaton, provided with with the new outside cells
+    pub fn step(&mut self, data: Vec<CellState>) {
+        let ot = self.tiles.clone();
+        for y in 1..self.tiles.len() - 1 {
+            for x in 1..self.tiles.len() - 1 {
+                let pos = Point {
+                    x: x as i32,
+                    y: y as i32,
+                };
+                let next = match ot[y][x] {
+                    CellState::Alive => CellState::Dead,
+                    CellState::Dead => CellState::Wire,
+                    CellState::Empty => CellState::Empty,
+                    CellState::Wire => {
+                        let mut n = 0;
+                        for i in [
+                            Point {
+                                x: pos.x - 1,
+                                y: pos.y - 1,
+                            },
+                            Point {
+                                x: pos.x,
+                                y: pos.y - 1,
+                            },
+                            Point {
+                                x: pos.x + 1,
+                                y: pos.y - 1,
+                            },
+                            Point {
+                                x: pos.x - 1,
+                                y: pos.y,
+                            },
+                            Point {
+                                x: pos.x + 1,
+                                y: pos.y,
+                            },
+                            Point {
+                                x: pos.x - 1,
+                                y: pos.y + 1,
+                            },
+                            Point {
+                                x: pos.x,
+                                y: pos.y + 1,
+                            },
+                            Point {
+                                x: pos.x + 1,
+                                y: pos.y + 1,
+                            },
+                        ] {
+                            if ot[i.y as usize][i.x as usize] == CellState::Alive {
+                                n += 1;
+                            }
+                        }
+                        if n == 1 || n == 2 {
+                            CellState::Alive
+                        } else {
+                            CellState::Wire
+                        }
+                    }
+                };
+                self.tiles[y][x] = next;
+            }
+            assert_eq!(
+                data.len(),
+                self.tiles.len() * 2 + self.tiles[0].len() * 2 - 4,
+                "wrongly sized data: data != expected"
+            );
+            let mut i = 0;
+            let w = self.tiles[0].len();
+            let h = self.tiles.len();
+            for y in 0..h {
+                self.tiles[y][0] = data[i];
+                i += 1;
+            }
+            for x in 1..w {
+                self.tiles[h - 1][x] = data[i];
+                i += 1;
+            }
+            for y in (1..h).rev() {
+                self.tiles[y][w - 1] = data[i];
+                i += 1;
+            }
+            for x in (1..w - 1).rev() {
+                self.tiles[0][x] = data[i];
+                i += 1;
+            }
+        }
+    }
     pub fn get_cell(&self, x: i32, y: i32) -> Option<CellState> {
         let iy = y - self.y;
         let ix = x - self.x;

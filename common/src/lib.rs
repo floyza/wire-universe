@@ -10,3 +10,9 @@ pub enum CellState {
     Empty,
     Wire,
 }
+
+#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
+pub struct Point {
+    pub x: i32,
+    pub y: i32,
+}

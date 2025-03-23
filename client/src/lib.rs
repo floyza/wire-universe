@@ -53,12 +53,17 @@ fn init_websocket(st: Rc<RefCell<State>>) {
                         let data = js_sys::Uint8Array::new(&fr_c.result().unwrap()).to_vec();
                         if let Ok(val) = rmp_serde::from_slice::<FromServer>(&data) {
                             match val {
-                                FromServer::Refresh { x, y, tiles } => {
+                                FromServer::FullRefresh { x, y, tiles } => {
                                     let st = &mut st.borrow_mut();
                                     let world = &mut st.world;
                                     world.tiles = tiles;
                                     world.x = x;
                                     world.y = y;
+                                    st.render_tiles().unwrap();
+                                }
+                                FromServer::PartialRefresh { tiles } => {
+                                    let st = &mut st.borrow_mut();
+                                    st.world.step(tiles);
                                     st.render_tiles().unwrap();
                                 }
                             }
@@ -197,6 +202,7 @@ fn init_input_callbacks(st: Rc<RefCell<State>>) {
 #[wasm_bindgen(start)]
 fn start() -> Result<(), JsValue> {
     console_log!("Starting wasm");
+    std::panic::set_hook(Box::new(console_error_panic_hook::hook));
     let socket = WebSocket::new("ws://localhost:3000/ws")?;
     let document = document()?;
     let canvas = document

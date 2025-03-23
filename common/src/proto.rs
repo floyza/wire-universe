@@ -3,11 +3,15 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub enum FromServer {
-    Refresh {
+    FullRefresh {
         x: i32,
         y: i32,
         /// indexed by y then x
         tiles: Vec<Vec<CellState>>,
+    },
+    PartialRefresh {
+        /// the outside perimeter tiles, starting at the top left and going counter-clockwise
+        tiles: Vec<CellState>,
     },
 }
 

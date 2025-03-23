@@ -1,7 +1,7 @@
 use std::{collections::HashMap, path::Path};
 
 use anyhow::{anyhow, Context, Result};
-use wire_universe::CellState;
+use wire_universe::{CellState, Point};
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[repr(u8)]
@@ -27,12 +27,6 @@ fn cell_state_admit(c: CellState) -> Option<CellStateInternal> {
         CellState::Wire => Some(CellStateInternal::Wire),
         CellState::Empty => None,
     }
-}
-
-#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
-pub struct Point {
-    pub x: i32,
-    pub y: i32,
 }
 
 #[derive(Clone, Debug)]
@@ -214,12 +208,43 @@ impl World {
         for j in y..(y + h) {
             let mut row = Vec::new();
             for i in x..(x + w) {
-                let cell = self.pts.get(&Point { x: i, y: j }).map(|&i| self.sts[i]);
-                row.push(cell_state_expel(cell));
+                row.push(self.get_tile_out(Point { x: i, y: j }));
             }
             ret.push(row);
         }
         return ret;
+    }
+
+    fn get_tile(&self, p: Point) -> Option<CellStateInternal> {
+        self.pts.get(&p).map(|&i| self.sts[i])
+    }
+
+    pub fn get_tile_out(&self, p: Point) -> CellState {
+        cell_state_expel(self.get_tile(p))
+    }
+
+    // returns the perimeter in the method expected by `PartialRefresh'
+    pub fn copy_perimeter(&self, x: i32, y: i32, w: i32, h: i32) -> Vec<CellState> {
+        let mut p = vec![];
+        for dy in 0..h {
+            p.push(self.get_tile_out(Point { x, y: y + dy }));
+        }
+        for dx in 1..w {
+            p.push(self.get_tile_out(Point {
+                x: x + dx,
+                y: y + h - 1,
+            }));
+        }
+        for dy in (1..h).rev() {
+            p.push(self.get_tile_out(Point {
+                x: x + w - 1,
+                y: y + dy,
+            }));
+        }
+        for dx in (1..w - 1).rev() {
+            p.push(self.get_tile_out(Point { x: x + dx, y }));
+        }
+        return p;
     }
 }
 

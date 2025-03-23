@@ -20,11 +20,9 @@ use tower_http::services::ServeDir;
 
 use wire_universe::{
     proto::{FromClient, FromServer},
-    CellState,
+    CellState, Point,
 };
 use world::World;
-
-use crate::world::Point;
 
 pub mod world;
 
@@ -63,12 +61,20 @@ async fn handle_socket(
     let mut view_w = 30;
     let mut view_h = 30;
     let mut sending = false;
+    let mut synced = false;
     loop {
         select! {
             Ok(world) = world_receiver.recv() => {
                 if sending {
-                    let tiles = world.copy_slice(view_x, view_y, view_w, view_h);
-                    let msg = FromServer::Refresh { x: view_x, y: view_y, tiles };
+                    let msg;
+                    if synced {
+                        let tiles = world.copy_perimeter(view_x, view_y, view_w, view_h);
+                        msg = FromServer::PartialRefresh { tiles };
+                    } else {
+                        let tiles = world.copy_slice(view_x, view_y, view_w, view_h);
+                        msg = FromServer::FullRefresh { x: view_x, y: view_y, tiles };
+                        synced = true;
+                    }
                     if socket.send(Message::Binary(rmp_serde::to_vec(&msg).unwrap())).await.is_err() {
                         return;
                     }
@@ -87,11 +93,12 @@ async fn handle_socket(
                                     view_y = y;
                                     view_w = w;
                                     view_h = h;
+                                    synced = false;
                                 }
                                 FromClient::StartStream => {
                                     let world = last_world.lock().unwrap().clone();
                                     let tiles = world.copy_slice(view_x, view_y, view_w, view_h);
-                                    let msg = FromServer::Refresh { x: view_x, y: view_y, tiles };
+                                    let msg = FromServer::FullRefresh { x: view_x, y: view_y, tiles };
                                     if socket.send(Message::Binary(rmp_serde::to_vec(&msg).unwrap())).await.is_err() {
                                         return;
                                     }
