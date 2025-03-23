@@ -38,6 +38,7 @@ pub struct Point {
 #[derive(Clone, Debug)]
 pub struct World {
     pts: HashMap<Point, usize>,
+    pts_r: HashMap<usize, Point>,
     sts: Vec<CellStateInternal>,
     nbors: Vec<Vec<usize>>,
 }
@@ -46,6 +47,7 @@ impl World {
     pub fn new() -> World {
         World {
             pts: HashMap::new(),
+            pts_r: HashMap::new(),
             sts: Vec::new(),
             nbors: Vec::new(),
         }
@@ -147,10 +149,15 @@ impl World {
                     self.sts.push(s);
                     self.nbors.push(neighbors);
                     self.pts.insert(pos, self.sts.len() - 1);
+                    self.pts_r.insert(self.sts.len() - 1, pos);
                 }
             }
             None => {
                 if let Some(i) = self.pts.remove(&pos) {
+                    assert!(
+                        self.pts_r.remove(&i).is_some(),
+                        "pts_r missing value in pts"
+                    );
                     for ni in self.nbors[i].clone() {
                         self.nbors[ni].retain(|&x| x != i);
                     }
@@ -158,8 +165,12 @@ impl World {
                     self.nbors.swap_remove(i);
                     // update neighbors for moved cell, which is now at `i`
                     let old_i = self.sts.len();
+                    // we don't need to update anything if we removed the last cell
                     if i != old_i {
-                        // we don't need to update anything if we removed the last cell
+                        let moved_pt = self.pts_r[&old_i];
+                        self.pts_r.remove(&old_i).unwrap();
+                        self.pts_r.insert(i, moved_pt);
+                        self.pts.insert(moved_pt, i); // modify existent value
                         for &ni in &self.nbors[i].clone() {
                             for nni in &mut self.nbors[ni] {
                                 if *nni == old_i {

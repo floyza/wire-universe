@@ -17,5 +17,6 @@ Too much work, not necessarily even useful
 is browser specific? seems to only act like that on firefox, on chrome the outline seems wider at least
 ** TODO add world simulation on client side so we only have to send the border + changes
 This may be not that important, and increases complexity a fair deal
+** TODO improve client recv performance
 * Unimportant
 ** TODO Setup size optimization for js
