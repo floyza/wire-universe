@@ -64,19 +64,27 @@ async fn handle_socket(
     let mut synced = false;
     loop {
         select! {
-            Ok(world) = world_receiver.recv() => {
-                if sending {
-                    let msg;
-                    if synced {
-                        let tiles = world.copy_perimeter(view_x, view_y, view_w, view_h);
-                        msg = FromServer::PartialRefresh { tiles };
-                    } else {
-                        let tiles = world.copy_slice(view_x, view_y, view_w, view_h);
-                        msg = FromServer::FullRefresh { x: view_x, y: view_y, tiles };
-                        synced = true;
+            world = world_receiver.recv() => {
+                match world {
+                    Ok(world) => {
+                        if sending {
+                            let msg;
+                            if synced {
+                                let tiles = world.copy_perimeter(view_x, view_y, view_w, view_h);
+                                msg = FromServer::PartialRefresh { tiles };
+                            } else {
+                                let tiles = world.copy_slice(view_x, view_y, view_w, view_h);
+                                msg = FromServer::FullRefresh { x: view_x, y: view_y, tiles };
+                                synced = true;
+                            }
+                            if socket.send(Message::Binary(rmp_serde::to_vec(&msg).unwrap())).await.is_err() {
+                                return;
+                            }
+                        }
                     }
-                    if socket.send(Message::Binary(rmp_serde::to_vec(&msg).unwrap())).await.is_err() {
-                        return;
+                    Err(broadcast::error::RecvError::Closed) => {}
+                    Err(broadcast::error::RecvError::Lagged(_)) => {
+                        synced = false;
                     }
                 }
             }
