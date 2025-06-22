@@ -26,7 +26,7 @@ impl World {
     pub fn step(&mut self, data: Vec<CellState>) {
         let ot = self.tiles.clone();
         for y in 1..self.tiles.len() - 1 {
-            for x in 1..self.tiles.len() - 1 {
+            for x in 1..self.tiles[0].len() - 1 {
                 let pos = Point {
                     x: x as i32,
                     y: y as i32,
