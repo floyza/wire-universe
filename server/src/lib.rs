@@ -111,6 +111,7 @@ async fn handle_socket(
                                         return;
                                     }
                                     sending = true;
+                                    synced = true;
                                 }
                             }
                         }
