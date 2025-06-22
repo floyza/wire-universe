@@ -6,7 +6,8 @@
 ** DONE make brush change trigger redrawing brush at mouse position
 [[file:~/src/wire-universe/assets/main.js::document.onkeydown = (event) => {]]
 ** TODO place palette on top of canvas?
-** TODO send refresh when a client sends a setview in case the refresh rate is low
+** DONE send refresh when a client sends a setview in case the refresh rate is low
+** TODO side thing: I'm not sure if new things added to the broadcaster get all of the old worlds, or just the new one
 ** TODO optimize moving around/scrolling canvas
 Take the already drawn thing and move it around instead of redrawing a ton of stuff. it gets pretty gnarly when you are trying to redraw a 1000x1000 canvas pixel by pixel at 160fps
 ** KILL refactor more stuff into modules
@@ -15,7 +16,7 @@ Take the already drawn thing and move it around instead of redrawing a ton of st
 Too much work, not necessarily even useful
 ** TODO figure out why the cursor square outline is bigger than the cursor square
 is browser specific? seems to only act like that on firefox, on chrome the outline seems wider at least
-** TODO add world simulation on client side so we only have to send the border + changes
+** DONE add world simulation on client side so we only have to send the border + changes
 This may be not that important, and increases complexity a fair deal
 ** TODO improve client recv performance
 * Unimportant
